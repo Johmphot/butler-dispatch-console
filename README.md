@@ -22,17 +22,23 @@ Top-level pages: **Grouping** (booking import/window, plus Timeline/Group Check/
 sub-tabs) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
 export view, with the CSV export button) · **Read Me**.
 
-## What's new (v1.3.0)
+## What's new (v1.4.0)
 
-**Butler Schedule** shows one card per travel party, following a Backoffice booking-card mockup.
-Group cards show a booking-count badge and a staff-editable group name; every card quantity is
-already the party-level total, not one member's figures. Assigned/Email Sent are demo-only toggle
-buttons — the prototype has no real butler-assignment state, so they just show what the two
-confirmed status dots look like independently. Each card also has a per-field icon row confirmed
-against separate Arrival/Departure mockups (Gate, Passengers, Checked/Oversized Baggage, and Pets
-on both; Baggage Belt, Buggy, and Flower on Arrival only; Check-in Counter and Lounge on Departure
-only) — only Passengers and Buggy are real in this demo's data, the rest show a dimmed "—" since
-the sample GG19/AOT export has no columns for them.
+Fixed the **Assign butler** button (and Butler Schedule's Save/Email-sent controls, and PSI's
+Confirm/Dismiss/Mark Individual): the shared click-handling logic was still scoped to the old
+results panel from before Butler Schedule and PSI became their own top-level pages, so their
+buttons silently did nothing. **Email sent** is now a checkbox instead of a toggle button.
+Gate/Baggage Belt/Check-in Counter are confirmed sourced from a new airport-ops-data-feed
+integration in the real system — still shown as a dimmed "—" here since this demo's data doesn't
+carry them.
+
+**Butler Schedule** (v1.3.0) shows one card per travel party, following a Backoffice booking-card
+mockup. Group cards show a booking-count badge and a staff-editable group name; every card
+quantity is already the party-level total, not one member's figures. Each card also has a
+per-field icon row confirmed against separate Arrival/Departure mockups (Gate, Passengers,
+Checked/Oversized Baggage, and Pets on both; Baggage Belt, Buggy, and Flower on Arrival only;
+Check-in Counter and Lounge on Departure only) — only Passengers and Buggy are real in this demo's
+data, the rest show a dimmed "—" since the sample GG19/AOT export has no columns for them.
 
 Butler Schedule and PSI were also promoted from tabs nested under a single page to their own
 top-level pages, and that page was renamed from "Grouping & PSI" to plain **Grouping**.

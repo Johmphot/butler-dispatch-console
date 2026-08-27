@@ -115,19 +115,39 @@
   }
   .app{max-width:1180px; margin:0 auto; padding:40px 24px 80px;}
 
-  .hero{margin-bottom:28px;}
-  .eyebrow{
-    font-family:var(--font-mono); font-size:11px; letter-spacing:.09em;
-    color:var(--signal); font-weight:500; text-transform:uppercase;
-    display:flex; align-items:center; gap:8px; margin-bottom:10px;
+  .top-nav{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding-bottom:14px; margin-bottom:32px; border-bottom:1px solid var(--line);
   }
-  .eyebrow::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--signal); display:inline-block;}
+  .top-nav-tabs{display:flex; gap:24px;}
+  .page-tab{
+    background:transparent; border:none; border-bottom:2px solid transparent; border-radius:0;
+    padding:6px 2px; font-family:var(--font-display); font-size:15px; font-weight:700;
+    color:var(--ink-dim);
+  }
+  .page-tab:hover{color:var(--ink);}
+  .page-tab.active{color:var(--ink); border-bottom-color:var(--signal);}
+  .version-badge{
+    font-family:var(--font-mono); font-size:11px; color:var(--ink-dim); background:var(--surface-2);
+    border:1px solid var(--line); border-radius:20px; padding:3px 10px; white-space:nowrap;
+  }
+
+  .hero{margin-bottom:28px;}
   h1{
     font-family:var(--font-display); font-weight:800; font-size:clamp(28px,4vw,38px);
     letter-spacing:-.01em; margin:0 0 10px; text-wrap:balance;
   }
   .sub{color:var(--ink-dim); max-width:62ch; margin:0; font-size:15px;}
   .sub a{color:var(--signal);}
+
+  /* ---- Read Me page ---- */
+  .readme{max-width:74ch;}
+  .readme h2{font-family:var(--font-display); font-size:22px; margin:0 0 16px;}
+  .readme h3{font-family:var(--font-display); font-size:16px; margin:28px 0 8px;}
+  .readme h3:first-of-type{margin-top:0;}
+  .readme p{color:var(--ink-dim); line-height:1.65; margin:0 0 14px; font-size:14px;}
+  .readme ul{color:var(--ink-dim); line-height:1.65; margin:0 0 14px; padding-left:20px; font-size:14px;}
+  .readme code{font-family:var(--font-mono); background:var(--neutral-soft); padding:1px 5px; border-radius:4px;}
 
   .panel{
     background:var(--surface); border:1px solid var(--line); border-radius:14px;
@@ -342,121 +362,168 @@
 </style>
 
 <div class="app">
-  <header class="hero">
-    <div class="eyebrow">GG19 · AOT Suvarnabhumi · Meet-and-greet dispatch</div>
-    <h1>Butler Dispatch Console</h1>
-    <p class="sub">Upload a raw booking export (or paste one), set the Meeting-Time window, and pick a grouping logic — the production <code style="font-family:var(--font-mono)">butler-booking-grouping</code> skill's five-tier detector, or the proposed APS group-booking matching engine — to see which bookings travel together, then get a suggested butler headcount per party and a day timeline.</p>
-  </header>
-
-  <section class="panel controls">
-    <div class="panel-head">
-      <h2>1 · Booking export &amp; window</h2>
-      <div class="control-actions">
-        <label class="file-btn small" for="xlsxFile">Upload .xlsx<input type="file" id="xlsxFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
-        <button id="loadSample" class="small ghost">Load sample export</button>
-        <button id="clearData" class="ghost small">Clear</button>
-      </div>
+  <div class="top-nav">
+    <div class="top-nav-tabs">
+      <button type="button" class="page-tab active" data-page="app">Grouping &amp; PSI</button>
+      <button type="button" class="page-tab" data-page="readme">Read Me</button>
     </div>
-    <p class="hint">Expects the standard GG19/AOT export: a <code>Booking</code> sheet, headers on row 1 (row 2's stray sub-header is dropped automatically). Parsing happens entirely in your browser — the file is never uploaded anywhere.</p>
-    <textarea id="csvInput" spellcheck="false"></textarea>
-    <div class="window-row">
-      <label>Grouping logic
-        <div class="segmented" id="logicToggle">
-          <button type="button" class="seg-btn" data-logic="original">GG19 skill (original)</button>
-          <button type="button" class="seg-btn active" data-logic="aps">APS matching engine (new)</button>
+    <span class="version-badge" id="versionBadge"></span>
+  </div>
+
+  <div id="page-app">
+    <header class="hero">
+      <h1>Butler Dispatch Console</h1>
+      <p class="sub">Upload or paste a booking export, pick a grouping logic, and process it to see which bookings travel together.</p>
+    </header>
+
+    <section class="panel controls">
+      <div class="panel-head">
+        <h2>1 · Booking export &amp; window</h2>
+        <div class="control-actions">
+          <label class="file-btn small" for="xlsxFile">Upload .xlsx<input type="file" id="xlsxFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
+          <button id="loadSample" class="small ghost">Load sample export</button>
+          <button id="clearData" class="ghost small">Clear</button>
         </div>
-      </label>
-      <label>Meeting-time window
-        <div class="window-inputs">
-          <input type="text" id="winStart">
-          <span>&rarr;</span>
-          <input type="text" id="winEnd">
-        </div>
-      </label>
-      <button id="processBtn" class="primary">Process bookings</button>
-    </div>
-    <p class="hint" id="logicHint"></p>
-    <div id="statusLine" class="status-line">Ready.</div>
-  </section>
-
-  <section class="panel results" id="results" hidden>
-    <div class="tabs-row">
-      <nav class="tabs">
-        <button data-tab="timeline" class="tab active">Timeline</button>
-        <button data-tab="psi" class="tab">PSI</button>
-        <button data-tab="groupcheck" class="tab">Group Check</button>
-        <button data-tab="summary" class="tab">Summary</button>
-        <button data-tab="suggested" class="tab" id="suggestedTabBtn" hidden>Review</button>
-      </nav>
-      <div class="tabs-row-actions">
-        <button id="exportBtn" class="small ghost">Export to Excel (.csv) — 1 row per service</button>
       </div>
-    </div>
-    <div class="tab-panel" id="tab-timeline"></div>
-    <div class="tab-panel" id="tab-psi" hidden></div>
-    <div class="tab-panel" id="tab-groupcheck" hidden></div>
-    <div class="tab-panel" id="tab-summary" hidden></div>
-    <div class="tab-panel" id="tab-suggested" hidden></div>
-  </section>
+      <p class="hint">Paste a CSV, or upload a <code>.xlsx</code> GG19/AOT <code>Booking</code>-sheet export.</p>
+      <textarea id="csvInput" spellcheck="false"></textarea>
+      <div class="window-row">
+        <label>Grouping logic
+          <div class="segmented" id="logicToggle">
+            <button type="button" class="seg-btn" data-logic="original">GG19 skill (original)</button>
+            <button type="button" class="seg-btn active" data-logic="aps">APS matching engine (new)</button>
+          </div>
+        </label>
+        <label>Meeting-time window
+          <div class="window-inputs">
+            <input type="text" id="winStart">
+            <span>&rarr;</span>
+            <input type="text" id="winEnd">
+          </div>
+        </label>
+        <button id="processBtn" class="primary">Process bookings</button>
+      </div>
+      <div id="statusLine" class="status-line">Ready.</div>
+    </section>
 
-  <footer>
-    Runs entirely in your browser — no file leaves this page. <strong>Original</strong> reimplements the tier logic in
-    <code>scripts/process_bookings.py</code> from the <code>butler-booking-grouping</code> skill: split-code detection with
-    the flight/time/total-count collision guard, hidden split codes in Special Request, Other-Passengers rows, note
-    cross-references, and phone/name matching, unioned into travel parties via union-find. <strong>APS matching engine</strong>
-    reimplements the matcher from the <code>group-booking-reference-clean-spec</code> requirement as of its 2026-08-25 update:
-    Duplicate Detection runs first — a booking matching another on primary signal + exact Pax 1 Name (suffix included) + pax
-    count + Meeting Time + all 5 identity fields (Pax 1 Name, Pax 1 Phone, Contact Name, Contact Phone, Contact Email) gets
-    flagged <code>DUPE</code> and excluded from grouping until staff clear it as <strong>Not Duplicated</strong> from the
-    <strong>Review</strong> tab, at which point it flows into ordinary matching on the next Process — same permanent-Dismiss
-    behavior the spec describes, just relabeled for what the action actually means to staff. A booking with the
-    <code>IndividualBooking</code> toggle on is pulled out next — set from an "Individual Booking" sample-data column, or live
-    from the <strong>Mark/Unmark Individual</strong> button in Group Check — and never joins a cluster, no matter how strongly
-    it matches. Everything else clusters on Airport + Flight + Meeting Date + Partner. Airport is read off the Booking Number's own Service letter
-    (P/D/H = BKK/DMK/HKT, per <code>booking-id-reference-scheme</code> — the same letter <code>GroupBookingID</code>
-    generation below already reuses), so two bookings that otherwise match are kept apart if they're at different airports.
-    Partner is waived entirely for a Klook-OCTO-sourced booking (modeled via a "Booking Source" column) — per
-    <code>klook-octo-integration</code>'s actual design, that channel never populates Partner at all, so requiring it there
-    would silently exclude every OCTO booking from ever grouping. Corroboration for a cluster is checked across those same 5
-    fields, each ONLY against its own same-named counterpart — never cross-field, so a booking's passenger name matching
-    another's contact name does not count. Any one of the 5 is enough for review, but reaching High Confidence / auto-group is
-    a stricter, separate bar: <strong>Contact Email</strong> match <em>and</em> <strong>Pax 1 Phone</strong> match are both
-    required, specifically those two named fields — <code>Contact Phone</code> does not substitute for <code>Pax 1 Phone</code>.
-    A cluster that clears the bar with only that pair (no other field) gets a borderline spot-check note, same as an unusually
-    large group (that threshold is a placeholder — the real one is still an open Ops calibration question). The Pax 1 Name n/m
-    suffix pattern has no effect on grouping (only Duplicate Detection reads it, and only as an exact string). Candidate pool
-    is <code>Status = Confirmed</code> only, per that same update — a Processing or Cancelled booking
-    is never matched, suggested, or grouped (the original logic is unaffected — it's a separate, already-shipped tool that
-    processes any non-blank Status). <code>SOLO</code> (no match) and <code>INDIVIDUAL</code> (toggle explicitly on) are merged
-    into one <code>INDIVIDUAL</code> badge — both just mean the booking travels alone from a staff-facing view, and the
-    Evidence column still spells out which of the two it actually is. A cluster that reaches Needs Review lands in the
-    <strong>Review</strong> tab (alongside Suggested Duplicates, above), where staff can <strong>Confirm</strong> it into a
-    real, staff-confirmed group (badged <code>CONFIRMED</code>, gets its
-    own <code>GroupBookingID</code> same as an auto-grouped one), <strong>Dismiss</strong> it permanently from the queue, or
-    <strong>Adjust</strong> it — pull one booking out of the cluster (it over-matched) before confirming the rest; the removed
-    booking becomes its own standalone entry (badged <code>ADJUSTED</code>) rather than being re-clustered against the other
-    removed bookings, which keeps the behavior simple and predictable at the cost of the richer "these two removed bookings
-    were actually their own separate party" case the real spec allows for. From Group Check, staff can also <strong>Merge
-    Groups</strong> — select 2+ existing groups and every booking across them ends up sharing one canonical
-    <code>GroupBookingID</code> — and <strong>Link/Unlink Connecting Itinerary</strong>, cross-referencing two rounds (solo or
-    grouped, one active link per round) as a "Connects to →" indicator without merging their membership. All of these persist
-    across re-processing until you load new data. Still not modeled: the Duplicate-&amp;-Group/creation-time override of the
-    Confirmed-only rule, and Merge's butler-conflict resolution step (this prototype has no butler-assignment state at all —
-    it only ever suggests a headcount, never assigns a named butler to a booking).
-    <br><br>
-    Group Check and Review now also show each booking's <strong>Channel</strong> (Website/Mobile/Backoffice — a display-only
-    field, no role in matching) and <strong>Partner</strong>. The CSV export's field set was redone (2026-08-26, Partner added
-    same day): Task No. / GroupBookingID / Group Status / Flight Date / Flight Time / Flight Number / Type / Booking Number /
-    Partner / Contact / Pax Name / Details — Contact and Pax Name each pack a name and phone number into one cell rather than
-    spreading across columns, and Details carries Special Request only. The <strong>PSI</strong> tab shows that exact same
-    field set and row grain as an on-page table (one row per service) headed by the date range spanning every booking in the
-    currently loaded file — independent of the Meeting-Time window above — and offers the same Confirm / Dismiss / Not
-    Duplicated / Mark Individual actions inline, so it doubles as another place to review from rather than a separate
-    mechanism. Every PSI row stays a fixed height regardless of how long a task's Details (Special Request) text runs —
-    clipped to a few lines by default, with an <strong>Expand</strong>/Collapse toggle on that one cell when it overflows;
-    a display-only toggle, so it resets on the next Process like everything else here. The page starts with an empty booking
-    list (2026-08-26) — <strong>Load sample export</strong> still populates the demo data on demand.
-  </footer>
+    <section class="panel results" id="results" hidden>
+      <div class="tabs-row">
+        <nav class="tabs">
+          <button data-tab="timeline" class="tab active">Timeline</button>
+          <button data-tab="psi" class="tab">PSI</button>
+          <button data-tab="groupcheck" class="tab">Group Check</button>
+          <button data-tab="summary" class="tab">Summary</button>
+          <button data-tab="suggested" class="tab" id="suggestedTabBtn" hidden>Review</button>
+        </nav>
+        <div class="tabs-row-actions">
+          <button id="exportBtn" class="small ghost">Export to Excel (.csv) — 1 row per service</button>
+        </div>
+      </div>
+      <div class="tab-panel" id="tab-timeline"></div>
+      <div class="tab-panel" id="tab-psi" hidden></div>
+      <div class="tab-panel" id="tab-groupcheck" hidden></div>
+      <div class="tab-panel" id="tab-summary" hidden></div>
+      <div class="tab-panel" id="tab-suggested" hidden></div>
+    </section>
+  </div>
+
+  <div id="page-readme" hidden>
+    <div class="readme">
+      <h2>Read Me</h2>
+      <p>Butler Dispatch Console compares two ways of grouping split travel-party bookings for SAWASDEE Pass's Personal
+      Butler service. Runs entirely in your browser — parsing, matching, and export all happen client-side; the file is
+      never uploaded anywhere. The page starts with an empty booking list — <strong>Load sample export</strong> populates
+      demo data on demand.</p>
+
+      <h3>GG19 skill (original)</h3>
+      <p>Reimplements the tier logic in <code>scripts/process_bookings.py</code> from the shipped
+      <code>butler-booking-grouping</code> skill: split-code detection with a same-flight collision guard, hidden split
+      codes in Special Request, multi-pax rows (Other Passengers), note cross-references, then phone/name matching —
+      unioned into travel parties via union-find. Processes any booking with a Status value (Cancelled, Processing, etc.
+      included), same as the real skill's own script.</p>
+
+      <h3>APS matching engine (new)</h3>
+      <p>Reimplements the matcher from the <code>group-booking-reference-clean-spec</code> requirement as of its
+      2026-08-25 update.</p>
+      <p><strong>Duplicate Detection</strong> runs first — a booking matching another on primary signal + exact Pax 1 Name
+      (suffix included) + pax count + Meeting Time + all 5 identity fields (Pax 1 Name, Pax 1 Phone, Contact Name, Contact
+      Phone, Contact Email) gets flagged <code>DUPE</code> and excluded from grouping until staff clear it as
+      <strong>Not Duplicated</strong> from the Review tab, at which point it flows into ordinary matching on the next
+      Process.</p>
+      <p>A booking with the <code>IndividualBooking</code> toggle on is pulled out next — set from an "Individual
+      Booking" sample-data column, or live from the Mark/Unmark Individual button in Group Check — and never joins a
+      cluster, no matter how strongly it matches. A toggled booking and one the engine simply found no match for share the
+      same <span class="chip status-INDIVIDUAL">INDIVIDUAL</span> badge ("travels alone" either way — the Evidence column
+      says which).</p>
+      <p>Everything else clusters on Airport + Flight + Meeting Date + Partner. Airport is read off the Booking Number's
+      own Service letter (P/D/H = BKK/DMK/HKT, per <code>booking-id-reference-scheme</code> — the same letter
+      <code>GroupBookingID</code> generation reuses), so two bookings that otherwise match are kept apart if they're at
+      different airports. Partner is waived entirely for a Klook-OCTO-sourced booking (modeled via a "Booking Source"
+      column) — per <code>klook-octo-integration</code>'s actual design, that channel never populates Partner at all.</p>
+      <p>Corroboration is checked across 5 fields (Pax 1 Name, Pax 1 Phone, Contact Name, Contact Phone, Contact Email),
+      each ONLY against its own same-named counterpart — never cross-field, so a booking's passenger name matching
+      another's contact name does not count. Any one of the 5 is enough for review, but reaching High Confidence /
+      auto-group is a stricter, separate bar: <strong>Contact Email</strong> match <em>and</em> <strong>Pax 1
+      Phone</strong> match are both required — <code>Contact Phone</code> does not substitute for <code>Pax 1
+      Phone</code>. A cluster that clears the bar with only that pair (no other field) gets a borderline spot-check note,
+      same as an unusually large group (that threshold is a placeholder — the real one is still an open Ops calibration
+      question). The Pax 1 Name n/m suffix pattern has no effect on grouping (only Duplicate Detection reads it, and only
+      as an exact string).</p>
+      <p>Candidate pool is <code>Status = Confirmed</code> only — a Processing or Cancelled booking is never matched,
+      suggested, or grouped (the original logic is unaffected — it processes any non-blank Status).</p>
+
+      <h3>GroupBookingID format</h3>
+      <p><code>G&lt;Service&gt;-&lt;Meeting Date YYMMDD&gt;-&lt;4-digit running&gt;</code>, e.g. <code>GP-260821-0001</code>
+      — Service letter reused from the party's Booking Number, independent of Booking ID otherwise. Running number resets
+      per Service + Meeting Date, assigned in Meeting-time order. Written for <span class="chip status-AUTO">AUTO</span>
+      and <span class="chip status-CONFIRMED">CONFIRMED</span> parties — a plain
+      <span class="chip status-REVIEW">REVIEW</span> cluster is still an unconfirmed suggestion, so it gets none; solo
+      bookings get none either. Under the original logic, <code>GroupBookingID</code> doesn't exist — the
+      <code>Group</code> column is a plain sequential label standing in for today's ad-hoc Excel re-grouping.</p>
+
+      <h3>Review tab</h3>
+      <p>A cluster that reaches Needs Review lands here, where staff can <strong>Confirm</strong> it into a real,
+      staff-confirmed group (badged <code>CONFIRMED</code>, gets its own <code>GroupBookingID</code> same as an
+      auto-grouped one), <strong>Dismiss</strong> it permanently from the queue, or <strong>Adjust</strong> it — pull one
+      booking out of the cluster (it over-matched) before confirming the rest; the removed booking becomes its own
+      standalone entry (badged <code>ADJUSTED</code>) rather than being re-clustered against the other removed bookings.</p>
+      <p><strong>Suggested Duplicates</strong> share this same tab — a booking that matches another on every field apart
+      from Booking ID. <strong>Not Duplicated</strong> clears the flag permanently for that exact pair. There's no
+      dedicated cancel/void action here — resolve a real duplicate from Booking Details on whichever booking you cancel.</p>
+
+      <h3>Merge Groups &amp; Connecting Itinerary</h3>
+      <p>From Group Check, staff can <strong>Merge Groups</strong> — select 2+ existing groups that turn out to be the
+      same party, and every booking across them ends up sharing one canonical <code>GroupBookingID</code>. Always
+      staff-initiated, never automatic.</p>
+      <p><strong>Link/Unlink Connecting Itinerary</strong> cross-references two rounds that are physically connected but
+      can't share a <code>GroupBookingID</code> (different Meeting Dates) — e.g. an Arrival plus an onward connecting
+      flight — as a "Connects to →" indicator without merging their membership. A round can only have one active link at
+      a time.</p>
+      <p>Both persist across re-processing until you load new data.</p>
+
+      <h3>PSI tab</h3>
+      <p>Shows the same field set and row grain as the CSV export (one row per service), headed by the date range
+      spanning every booking in the currently loaded file — independent of the Meeting-Time window. Offers the same
+      Confirm / Dismiss / Not Duplicated / Mark Individual actions inline, so it doubles as another place to review from
+      rather than a separate mechanism. Every row stays a fixed height regardless of how long a task's Details (Special
+      Request) text runs — clipped to a few lines by default, with an Expand/Collapse toggle on that one cell when it
+      overflows.</p>
+
+      <h3>CSV export &amp; display fields</h3>
+      <p>Export fields, in order: Task No. / GroupBookingID / Group Status / Flight Date / Flight Time / Flight Number /
+      Type / Booking Number / Partner / Contact / Pax Name / Details. Contact and Pax Name each pack a name and phone
+      number into one cell rather than spreading across columns; Details carries Special Request only.</p>
+      <p>Group Check and Review also show each booking's <strong>Channel</strong> (Website/Mobile/Backoffice — a
+      display-only field, no role in matching) and <strong>Partner</strong>.</p>
+
+      <h3>What's not modeled</h3>
+      <ul>
+        <li>The Duplicate-&amp;-Group/creation-time override of the Confirmed-only rule.</li>
+        <li>Merge's butler-conflict resolution step — this prototype has no butler-assignment state at all; it only ever
+        suggests a headcount, never assigns a named butler to a booking.</li>
+      </ul>
+    </div>
+  </div>
 </div>
 
 <!-- fflate v0.8.2 (MIT License) - https://github.com/101arrowz/fflate - embedded for client-side .xlsx unzip/inflate -->
@@ -478,6 +545,8 @@
   // treatment as GroupBookingID not existing under that logic. "Channel" (Website/Mobile/Backoffice) is
   // purely a display field for Group Check/Review — it plays no role in matching either.
   const COLUMNS = ["Status","Booking Number","Flight Number","Flight Type","Flight Date","Flight Time","Meeting Date","Meeting Time","Passenger 1","Other Passengers","Contact Name","Email","Phone","Pax 1 Phone","Special Request","Note","Partner","Adult","Child","Buggy","Booking Source","Individual Booking","Channel"];
+  // Bump on any user-visible change to this file — shown in the top-nav version badge.
+  const APP_VERSION = "1.0.0";
   let currentLogic = "aps"; // "original" (GG19 skill) | "aps" (APS group-booking matching engine) — default
 
   // ---------- staff-action state (APS logic only) ----------
@@ -1288,7 +1357,7 @@ COLUMNS,
         <div class="stat-tile"><span class="num">${summary.totalTasks}</span><span class="lbl">Distinct travel parties (tasks)</span></div>
         <div class="stat-tile"><span class="num">${summary.totalButlers}</span><span class="lbl">Total suggested butlers</span></div>
       </div>
-      <div class="rule-note">Butler ratio: <code>max(floor(adults / 2), children, 1)</code> per travel party — rounds down, applied once to the whole party's total pax, not per row.</div>
+      <div class="rule-note">Butler ratio: <code>max(floor(adults / 2), children, 1)</code> per travel party.</div>
       <div class="summary-grid">
         <div><h3 class="section">Suggested butlers per task</h3>${butlerRows || '<p style="color:var(--ink-dim)">No parties.</p>'}</div>
         <div><h3 class="section">Status breakdown (bookings)</h3>${statusRows}
@@ -1325,7 +1394,7 @@ COLUMNS,
     const mergePanel = groupRounds.length >= 2 ? `
       <div class="panel action-panel">
         <div class="title">Merge Groups</div>
-        <div class="hint">Staff select 2+ existing groups that turn out to be the same party — every booking across them ends up sharing one <code>GroupBookingID</code>. Always staff-initiated, never automatic.</div>
+        <div class="hint">Select 2+ groups to merge under one GroupBookingID.</div>
         <div class="action-row">
           <select multiple id="mergeSelect" class="action-select" size="${Math.min(6, groupRounds.length)}">
             ${groupRounds.map(rd => `<option value="${esc(rd.key)}">${esc(rd.label)}</option>`).join("")}
@@ -1337,7 +1406,7 @@ COLUMNS,
     const linkPanel = rounds.length >= 2 ? `
       <div class="panel action-panel">
         <div class="title">Link Connecting Itinerary</div>
-        <div class="hint">Cross-reference two rounds that are physically connected but can't share a <code>GroupBookingID</code> (different Meeting Dates) — e.g. an Arrival plus an onward connecting flight. A round can only have one active link at a time.</div>
+        <div class="hint">Pick two rounds to cross-reference (one active link per round).</div>
         <div class="action-row">
           <select id="linkRoundA" class="action-select">${linkOptions}</select>
           <select id="linkRoundB" class="action-select">${linkOptions}</select>
@@ -1387,11 +1456,7 @@ COLUMNS,
     const groupCol = currentLogic === "aps"
       ? `GroupBookingID`
       : `Group`;
-    const ruleNote = currentLogic === "aps"
-      ? `<div class="rule-note">GroupBookingID format: <code>G&lt;Service&gt;-&lt;Meeting Date YYMMDD&gt;-&lt;4-digit running&gt;</code>, e.g. <code>GP-260821-0001</code> — Service letter reused from the party's Booking Number (P/D/H = Personal Butler at BKK/DMK/HKT), independent of Booking ID otherwise. Running number resets per Service + Meeting Date, assigned in Meeting-time order. Written for <span class="chip status-AUTO">AUTO</span> and <span class="chip status-CONFIRMED">CONFIRMED</span> parties — a plain <span class="chip status-REVIEW">REVIEW</span> cluster is still an unconfirmed suggestion (see the Suggested Related Bookings tab), so it gets none; solo bookings get none either. The Individual-toggle button here models the staff-settable <code>IndividualBooking</code> flag — click it to see a would-be match get excluded from grouping live.</div>`
-      : `<div class="rule-note">GroupBookingID doesn't exist in the current/original workflow — the <code>Group</code> column is a plain sequential label standing in for today's ad-hoc Excel re-grouping. Switch to the APS matching engine to see the real <code>GroupBookingID</code> format.</div>`;
     return `
-      ${ruleNote}
       ${isAps ? renderActionPanels(data) : ""}
       <div class="table-wrap"><table class="gc">
       <thead><tr>
@@ -1418,7 +1483,7 @@ COLUMNS,
   function renderSuggested(data){
     const dupes = data.dupeClusters || [];
     const dupeSection = dupes.length ? `
-      <div class="rule-note">Suggested Duplicates — a booking that matches another on every field apart from Booking ID (Duplicate Detection, checked before grouping). <strong>Not Duplicated</strong> clears the flag permanently for this exact pair; it then flows into ordinary matching on the next Process, same as any other booking. There's no dedicated cancel/void action here — resolve a real duplicate from Booking Details on whichever booking you cancel.</div>
+      <div class="rule-note">Suggested Duplicates — <strong>Not Duplicated</strong> clears the flag for this pair and returns it to ordinary matching.</div>
       ${dupes.map(c => `
       <div class="panel" style="margin-bottom:12px; padding:14px 16px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
@@ -1445,7 +1510,7 @@ COLUMNS,
         </div>
       </div>`).join("")
       : `<p style="color:var(--ink-dim)">No pending grouping suggestions in this window — every cluster is either high-confidence (auto-grouped), unmatched, or already Confirmed/Dismissed.</p>`;
-    const reviewNote = `<div class="rule-note">Suggested Related Bookings — clusters that matched the primary signal (Airport+Flight+Meeting Date+Partner) but didn't clear the Contact Email + Pax 1 Phone auto-group bar. <strong>Confirm</strong> writes a real <code>GroupBookingID</code> (same as an AUTO party, badged <span class="chip status-CONFIRMED">CONFIRMED</span> instead). <strong>Dismiss</strong> removes it from this queue permanently. The <strong>×</strong> next to a booking is <strong>Adjust</strong> — pulls that one booking out of this suggestion (it over-matched) before you Confirm the rest; the removed booking becomes its own standalone entry in Group Check, badged <span class="chip status-ADJUSTED">ADJUSTED</span>, and won't be re-suggested into this cluster again. Either way, Create New Group / Add to Existing Group stays available by hand from Group Check.</div>`;
+    const reviewNote = `<div class="rule-note">Suggested Related Bookings — <strong>Confirm</strong> groups these bookings, <strong>Dismiss</strong> removes the suggestion, and the <strong>×</strong> next to a booking (<strong>Adjust</strong>) pulls just that one out before you Confirm the rest.</div>`;
 
     if (!dupes.length && !clusters.length){
       return `<p style="color:var(--ink-dim)">Nothing to review in this window — every booking is either high-confidence, unmatched, or already resolved.</p>`;
@@ -1728,7 +1793,7 @@ COLUMNS,
 
   function renderPSI(data){
     const rangeBanner = data.importRange
-      ? `<div class="rule-note">Imported bookings span <strong>${esc(fmtDisplayTS(data.importRange.min))}</strong> → <strong>${esc(fmtDisplayTS(data.importRange.max))}</strong> (Meeting time, full file — independent of the Meeting-Time window set above).</div>`
+      ? `<div class="rule-note">Imported bookings span <strong>${esc(fmtDisplayTS(data.importRange.min))}</strong> → <strong>${esc(fmtDisplayTS(data.importRange.max))}</strong>.</div>`
       : "";
     const isAps = currentLogic === "aps";
     const byTask = new Map();
@@ -1768,7 +1833,7 @@ COLUMNS,
 
     return `
       ${rangeBanner}
-      <div class="rule-note">Same field set as the CSV export, one row per service. ${isAps ? "Confirm / Dismiss / Not Duplicated / Mark Individual here act exactly like their Review-tab or Group Check counterparts — this is another place to do the same review, not a separate mechanism." : "Switch to the APS matching engine to see GroupBookingID and Review actions here."}</div>
+      ${isAps ? "" : `<div class="rule-note">Switch to the APS matching engine to see GroupBookingID and Review actions here.</div>`}
       <div class="table-wrap"><table class="gc">
         <thead><tr>${EXPORT_HEADERS.map(h => `<th>${esc(h)}</th>`).join("")}${isAps ? "<th>Review</th>" : ""}</tr></thead>
         <tbody>${body}</tbody>
@@ -1974,14 +2039,9 @@ COLUMNS,
     });
   });
 
-  const LOGIC_HINTS = {
-    original: "GG19 skill's 5-tier detector: split codes (with a same-flight collision guard), hidden split codes, multi-pax rows, note cross-references, then phone/name matching. Processes any booking with a Status value (Cancelled, Processing, etc. included) — same as the real skill's own script.",
-    aps: "APS group-booking matching engine (updated 2026-08-25): checks Duplicate Detection first — an exact match apart from Booking ID (across all 5 identity fields) gets flagged DUPE, reviewable in the Review tab (Not Duplicated clears it). A booking with the IndividualBooking toggle on is pulled out next, regardless of match strength — toggle it live from Group Check's Mark/Unmark Individual button; a toggled booking and one the engine simply found no match for share the same INDIVIDUAL badge (\"travels alone\" either way — the Evidence column says which). Everything else clusters on Airport (from the Booking Number's Service letter) + Flight + Meeting Date + Partner — waived for a Klook-OCTO-sourced booking, which never populates Partner at all. Corroboration checks 5 fields same-field-only, never cross-field (Pax 1 Name, Pax 1 Phone, Contact Name, Contact Phone, Contact Email) — any one is enough to suggest a review, but auto-grouping needs BOTH Contact Email and Pax 1 Phone specifically. That pair alone (no other field) gets a borderline spot-check note. A Needs Review cluster lands in the Review tab for staff to Confirm, Dismiss, or Adjust (pull one booking out before confirming the rest). Group Check also offers Merge Groups (combine 2+ existing groups under one GroupBookingID) and Link/Unlink Connecting Itinerary (cross-reference two rounds without merging them). Candidate pool is Status = Confirmed only — a Processing or Cancelled booking is never matched or grouped.",
-  };
   function setLogic(logic){
     currentLogic = logic;
     document.querySelectorAll("#logicToggle .seg-btn").forEach(b => b.classList.toggle("active", b.dataset.logic === logic));
-    $("#logicHint").textContent = LOGIC_HINTS[logic];
     if (!results.hidden) run();
   }
   document.querySelectorAll("#logicToggle .seg-btn").forEach(btn => {
@@ -1993,6 +2053,18 @@ COLUMNS,
     $("#winStart").value = fmtWindowInput(today, 0, 0);
     $("#winEnd").value = fmtWindowInput(tomorrow, 16, 0);
   }
+
+  // Top-level page nav (Grouping & PSI / Read Me) — independent of the inner .tab switching above,
+  // which only ever operates within the "Grouping & PSI" page.
+  $("#versionBadge").textContent = "v" + APP_VERSION;
+  document.querySelectorAll(".page-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".page-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      $("#page-app").hidden = btn.dataset.page !== "app";
+      $("#page-readme").hidden = btn.dataset.page !== "readme";
+    });
+  });
 
   // Starts empty (decided 2026-08-26) — no auto-loaded demo data on launch. "Load sample export" still
   // populates it on demand; uploading/pasting a real export works the same as it always did.

@@ -294,10 +294,6 @@
   .chip.status-RECK,.chip.status-REVIEW{background:var(--warn-soft); color:var(--warn);}
   .chip.status-DUPL,.chip.status-DUPE{background:var(--bad-soft); color:var(--bad);}
   .chip.status-INDV,.chip.status-INDIVIDUAL,.chip.status-ADJUSTED{background:var(--neutral-soft); color:var(--neutral-ink);}
-  .chip.status-match{background:var(--good-soft); color:var(--good);}
-  .chip.status-split{background:var(--bad-soft); color:var(--bad);}
-  .chip.status-partial{background:var(--warn-soft); color:var(--warn);}
-  .chip.status-miss{background:var(--neutral-soft); color:var(--neutral-ink);}
 
   /* ---- Timeline ---- */
   .timeline-legend{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:14px; font-size:12.5px; color:var(--ink-dim);}
@@ -391,10 +387,8 @@
         <button data-tab="groupcheck" class="tab">Group Check</button>
         <button data-tab="summary" class="tab">Summary</button>
         <button data-tab="suggested" class="tab" id="suggestedTabBtn" hidden>Review</button>
-        <button data-tab="compare" class="tab">Compare</button>
       </nav>
       <div class="tabs-row-actions">
-        <label class="file-btn small" for="compareFile">Upload comparison file<input type="file" id="compareFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
         <button id="exportBtn" class="small ghost">Export to Excel (.csv) — 1 row per service</button>
       </div>
     </div>
@@ -403,7 +397,6 @@
     <div class="tab-panel" id="tab-groupcheck" hidden></div>
     <div class="tab-panel" id="tab-summary" hidden></div>
     <div class="tab-panel" id="tab-suggested" hidden></div>
-    <div class="tab-panel" id="tab-compare" hidden></div>
   </section>
 
   <footer>
@@ -1268,7 +1261,6 @@ COLUMNS,
   const $ = sel => document.querySelector(sel);
   const csvInput = $("#csvInput"), statusLine = $("#statusLine"), results = $("#results");
   let lastData = null;
-  let lastCompareGroups = null, lastCompareFileName = "";
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
@@ -1550,9 +1542,8 @@ COLUMNS,
     return doc;
   }
 
-  // Shared low-level XLSX reader: unzips, loads shared strings, and hands back a cell-text reader
-  // plus a per-sheet row-element accessor. Both the primary Booking importer and the comparison-file
-  // importer (any sheet, any header row) build on this instead of duplicating the unzip/sst plumbing.
+  // Low-level XLSX reader: unzips, loads shared strings, and hands back a cell-text reader plus a
+  // per-sheet row-element accessor — the primary Booking importer builds on this.
   function openXlsx(arrayBuffer){
     let files;
     try { files = fflate.unzipSync(new Uint8Array(arrayBuffer)); }
@@ -1601,36 +1592,6 @@ COLUMNS,
     }
 
     return { sheetEls, cellText, sheetRowsEl };
-  }
-
-  function colLetterToIndex(letters){
-    let n = 0;
-    for (let i=0;i<letters.length;i++) n = n*26 + (letters.charCodeAt(i) - 64);
-    return n - 1;
-  }
-
-  // Reads every sheet into a plain 2D array of cell text (no header assumptions) — used by the
-  // comparison-file importer, which has to find its own header row on an arbitrary sheet.
-  function xlsxSheetGrids(arrayBuffer){
-    const { sheetEls, cellText, sheetRowsEl } = openXlsx(arrayBuffer);
-    return sheetEls.map(sheetEl => {
-      const rowEls = sheetRowsEl(sheetEl) || [];
-      const grid = rowEls.map(rowEl => {
-        const cellsByCol = {};
-        let maxCol = -1;
-        [...rowEl.children].forEach(c => {
-          const ref = c.getAttribute("r");
-          if (!ref) return;
-          const idx = colLetterToIndex(colLetterOf(ref));
-          cellsByCol[idx] = cellText(c);
-          if (idx > maxCol) maxCol = idx;
-        });
-        const row = [];
-        for (let i=0;i<=maxCol;i++) row.push(cellsByCol[i] || "");
-        return row;
-      });
-      return { name: sheetEl.getAttribute("name"), grid };
-    });
   }
 
   function xlsxToRows(arrayBuffer){
@@ -1688,173 +1649,6 @@ COLUMNS,
       statusLine.classList.add("err");
       statusLine.textContent = `⚠ ${file.name}: ${err.message}`;
     }
-  }
-
-  // ================= Compare against a staff-produced namelist =================
-  // Ops already manually groups bookings today (e.g. a "DEPARTURE NAMELIST" sheet: one row per
-  // dispatched service, a Booking No. cell listing every combined Booking Number newline-separated).
-  // This scans an uploaded workbook for any sheet shaped like that — not tied to a specific sheet
-  // name, since real exports name it differently day to day — and cross-checks each staff-formed
-  // group against what the currently-selected grouping logic computes for the same bookings.
-  // Some sheets store Flight Date/Time as genuine Excel numeric serials (date-formatted cells) rather
-  // than text — unlike the primary Booking sheet, which always carries these as plain strings. Purely
-  // cosmetic (comparison matching is by Booking Number only) but ugly left as "46253.0" / "0.263889".
-  function excelSerialToText(raw){
-    if (!/^-?\d+(\.\d+)?$/.test(raw)) return raw;
-    const n = parseFloat(raw);
-    if (!isFinite(n)) return raw;
-    const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000); // Excel's day-0 epoch
-    const hasDate = Math.abs(n) >= 1, hasTime = Math.abs(n % 1) > 1e-9;
-    const dmy = `${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth()+1)}/${d.getUTCFullYear()}`;
-    const hm = `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
-    if (hasDate && hasTime) return `${dmy} ${hm}`;
-    return hasDate ? dmy : hm;
-  }
-
-  function findNamelistGroups(sheets){
-    const groups = [];
-    sheets.forEach(({ name, grid }) => {
-      // A header cell is short ("Flight No.", "Booking no." — a handful of words). Data rows can
-      // contain those same phrases buried inside a long free-text Note/Special-Request paragraph
-      // (e.g. "...Flight No.: TG 941\nBooking No.: PBB180092..."); without a length guard, that data
-      // row gets misread as the header row and every column mapping downstream is garbage.
-      const isHeaderish = v => { const t = (v||"").trim(); return t.length > 0 && t.length <= 24; };
-      let headerRow = -1, flightNoCol = -1, bookingNoCol = -1, nameCol = -1, dateCol = -1, timeCol = -1;
-      for (let r = 0; r < Math.min(grid.length, 8); r++){
-        const row = grid[r];
-        const fCol = row.findIndex(v => isHeaderish(v) && /flight\s*no/i.test(v));
-        const bCol = row.findIndex(v => isHeaderish(v) && /booking\s*no/i.test(v));
-        if (fCol === -1 || bCol === -1) continue;
-        headerRow = r; flightNoCol = fCol; bookingNoCol = bCol;
-        nameCol = row.findIndex(v => isHeaderish(v) && /\bname\b/i.test(v));
-        dateCol = row.findIndex(v => isHeaderish(v) && /flight\s*date/i.test(v));
-        timeCol = row.findIndex(v => isHeaderish(v) && /flight\s*time/i.test(v));
-        break;
-      }
-      if (headerRow === -1) return; // no namelist-shaped header in this sheet
-      for (let r = headerRow + 1; r < grid.length; r++){
-        const row = grid[r];
-        const bookingNumbers = (row[bookingNoCol] || "").split("\n").map(s => s.trim()).filter(Boolean);
-        if (!bookingNumbers.length) continue;
-        groups.push({
-          sheet: name,
-          flightNo: (row[flightNoCol] || "").split("\n")[0].trim(),
-          flightDate: dateCol >= 0 ? excelSerialToText((row[dateCol] || "").trim()) : "",
-          flightTime: timeCol >= 0 ? excelSerialToText((row[timeCol] || "").trim()) : "",
-          names: nameCol >= 0 ? (row[nameCol] || "").trim() : "",
-          bookingNumbers,
-        });
-      }
-    });
-    return groups;
-  }
-
-  function compareToNamelist(data, groups){
-    const byBooking = new Map();
-    data.df.forEach(r => byBooking.set((r["Booking Number"] || "").trim().toUpperCase(), r));
-    const rows = groups.map(g => {
-      const bns = g.bookingNumbers.map(bn => bn.toUpperCase());
-      const found = bns.map(bn => byBooking.get(bn)).filter(Boolean);
-      const taskNos = [...new Set(found.map(r => r.task_no))];
-      let verdict, cls;
-      if (found.length === 0){ verdict = "Not in current data (outside window, wrong Status, …)"; cls = "miss"; }
-      else if (found.length < bns.length){ verdict = `Partially in current data (${found.length}/${bns.length} bookings found)`; cls = "partial"; }
-      else if (taskNos.length === 1){ verdict = "Match — grouped the same way"; cls = "match"; }
-      else { verdict = `Split into ${taskNos.length} separate tasks (Task ${taskNos.join(", ")})`; cls = "split"; }
-      return Object.assign({}, g, { verdict, cls, taskNos });
-    });
-    const summary = countBy(rows.map(r => r.cls));
-
-    // Reverse direction: one of OUR multi-booking tasks whose members appear individually in the
-    // namelist but never combined together on any single namelist row — i.e. staff had the chance to
-    // combine them and didn't. A conservative signal for "our tool may be over-grouping."
-    const namelistCoGrouped = new Set(); // "BN1|BN2" pairs (sorted) that appear together on some row
-    groups.forEach(g => {
-      const bns = g.bookingNumbers.map(bn => bn.toUpperCase());
-      for (let i = 0; i < bns.length; i++) for (let j = i+1; j < bns.length; j++){
-        namelistCoGrouped.add([bns[i], bns[j]].sort().join("|"));
-      }
-    });
-    const namelistBookings = new Set(groups.flatMap(g => g.bookingNumbers.map(bn => bn.toUpperCase())));
-    const byTask = new Map();
-    data.df.forEach(r => {
-      if (!byTask.has(r.task_no)) byTask.set(r.task_no, []);
-      byTask.get(r.task_no).push((r["Booking Number"]||"").trim().toUpperCase());
-    });
-    const overGrouped = [];
-    byTask.forEach((bns, taskNo) => {
-      if (bns.length < 2) return;
-      const covered = bns.filter(bn => namelistBookings.has(bn));
-      if (covered.length < 2) return; // not enough namelist coverage to judge this task
-      let anyPairCoGrouped = false;
-      for (let i = 0; i < covered.length; i++) for (let j = i+1; j < covered.length; j++){
-        if (namelistCoGrouped.has([covered[i], covered[j]].sort().join("|"))) anyPairCoGrouped = true;
-      }
-      if (!anyPairCoGrouped) overGrouped.push({ taskNo, bookingNumbers: bns });
-    });
-
-    return { rows, summary, overGrouped };
-  }
-
-  async function loadCompareFile(file){
-    statusLine.classList.remove("err");
-    statusLine.textContent = `Reading ${file.name} for comparison…`;
-    try {
-      const buf = await file.arrayBuffer();
-      const sheets = xlsxSheetGrids(buf);
-      const groups = findNamelistGroups(sheets);
-      if (!groups.length) throw new Error(`Couldn't find a namelist-style sheet in this file — need a sheet with header cells for "Flight No." and "Booking No." within its first few rows.`);
-      lastCompareGroups = groups;
-      lastCompareFileName = file.name;
-      renderCompareTab();
-      statusLine.textContent = `${file.name}: found ${groups.length} staff-formed group${groups.length===1?"":"s"} across ${new Set(groups.map(g=>g.sheet)).size} sheet(s). See the Compare tab.`;
-    } catch (err){
-      statusLine.classList.add("err");
-      statusLine.textContent = `⚠ ${file.name}: ${err.message}`;
-    }
-  }
-
-  function renderCompareTab(){
-    const tab = $("#tab-compare");
-    if (!lastCompareGroups){
-      tab.innerHTML = `<p class="hint">Upload a staff-produced namelist/PSI file (button above the tabs) to compare its groupings against the currently selected logic.</p>`;
-      return;
-    }
-    if (!lastData){
-      tab.innerHTML = `<p class="hint">Process some bookings first (the comparison file "${esc(lastCompareFileName)}" is loaded and ready — ${lastCompareGroups.length} groups found).</p>`;
-      return;
-    }
-    tab.innerHTML = renderCompare(lastData, compareToNamelist(lastData, lastCompareGroups));
-  }
-
-  function renderCompare(data, cmp){
-    const s = k => cmp.summary.find(([key])=>key===k)?.[1] || 0;
-    const rows = cmp.rows.map(r => `
-      <tr>
-        <td class="mono">${esc(r.sheet)}</td>
-        <td class="mono">${esc(r.flightNo)}</td>
-        <td class="mono">${esc(r.flightDate)} ${esc(r.flightTime)}</td>
-        <td class="pax">${esc(r.names)}</td>
-        <td class="mono pax">${esc(r.bookingNumbers.join("\n"))}</td>
-        <td><span class="chip status-${r.cls}">${esc(r.verdict)}</span></td>
-      </tr>`).join("");
-    const overGroupedBlock = cmp.overGrouped.length ? `
-      <div class="rule-note" style="margin-top:16px">
-        <strong>${cmp.overGrouped.length} of our task(s) may be over-grouped</strong> — every booking below appears
-        individually in the comparison file, but never combined together on any single namelist row:
-        ${cmp.overGrouped.map(o => `Task ${o.taskNo} (${esc(o.bookingNumbers.join(", "))})`).join("; ")}.
-      </div>` : "";
-    return `
-      <div class="stat-row">
-        <div class="stat-tile"><span class="num">${s("match")}</span><span class="lbl">Matched staff's grouping</span></div>
-        <div class="stat-tile"><span class="num">${s("split")}</span><span class="lbl">We split what staff combined</span></div>
-        <div class="stat-tile"><span class="num">${s("partial")+s("miss")}</span><span class="lbl">Not fully in current data</span></div>
-      </div>
-      ${overGroupedBlock}
-      <div class="table-wrap" style="margin-top:16px"><table class="gc">
-        <thead><tr><th>Sheet</th><th>Flight</th><th>Meeting</th><th>Names (staff file)</th><th>Booking Numbers (staff file)</th><th>vs. our grouping</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>`;
   }
 
   // ================= Export to Excel — one row per service (task), not per booking =================
@@ -2062,7 +1856,6 @@ COLUMNS,
         $("#tab-timeline").hidden = false;
         $("#tab-suggested").hidden = true;
       }
-      renderCompareTab();
       results.hidden = false;
       const excludedNote = data.summary.excludedNotConfirmed > 0
         ? ` (${data.summary.excludedNotConfirmed} in-window but not Confirmed, excluded)`
@@ -2086,12 +1879,6 @@ COLUMNS,
     e.target.value = ""; // allow re-selecting the same file later
     if (file){ resetStaffActions(); loadXlsxFile(file); }
   });
-  $("#compareFile").addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    e.target.value = "";
-    if (file) loadCompareFile(file);
-  });
-
   // Event delegation for buttons rendered inside innerHTML-replaced tab panels (Group Check's
   // Mark/Unmark Individual, Merge Groups, Link/Unlink Connecting Itinerary; Review's
   // Confirm/Dismiss/Adjust/Not Duplicated) — attached once on the shared #results ancestor rather than
@@ -2181,7 +1968,7 @@ COLUMNS,
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      ["timeline","psi","groupcheck","summary","suggested","compare"].forEach(name => {
+      ["timeline","psi","groupcheck","summary","suggested"].forEach(name => {
         $("#tab-"+name).hidden = name !== btn.dataset.tab;
       });
     });

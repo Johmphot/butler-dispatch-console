@@ -347,6 +347,12 @@
   }
   .bs-groupname-input:focus-visible{outline:2px solid var(--signal); outline-offset:1px;}
   .bs-stats{font-size:12px; color:var(--ink-dim); display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .bs-icons{display:flex; flex-direction:column; gap:3px; margin:2px 0;}
+  .bs-icon-row{display:flex; align-items:center; gap:8px; font-size:12px;}
+  .bs-icon-row svg{width:14px; height:14px; flex-shrink:0; color:var(--slate);}
+  .bs-icon-row .val{font-weight:700; color:var(--ink); font-family:var(--font-mono); min-width:14px;}
+  .bs-icon-row .val.na{color:var(--ink-dim); font-weight:600; opacity:.5; cursor:help;}
+  .bs-icon-row .lbl{color:var(--ink-dim);}
   .bs-contact{font-size:12px; color:var(--ink-dim); font-family:var(--font-mono); line-height:1.5;}
   .bs-actions{display:flex; gap:8px; margin-top:4px; flex-wrap:wrap;}
   button.btn-do-assign{background:var(--good-soft); color:var(--good); border-color:var(--good);}
@@ -401,7 +407,9 @@
 <div class="app">
   <div class="top-nav">
     <div class="top-nav-tabs">
-      <button type="button" class="page-tab active" data-page="app">Grouping &amp; PSI</button>
+      <button type="button" class="page-tab active" data-page="app">Grouping</button>
+      <button type="button" class="page-tab" data-page="butlersched">Butler Schedule</button>
+      <button type="button" class="page-tab" data-page="psi">PSI</button>
       <button type="button" class="page-tab" data-page="readme">Read Me</button>
     </div>
     <span class="version-badge" id="versionBadge"></span>
@@ -447,23 +455,29 @@
       <div class="tabs-row">
         <nav class="tabs">
           <button data-tab="timeline" class="tab active">Timeline</button>
-          <button data-tab="butlersched" class="tab">Butler Schedule</button>
-          <button data-tab="psi" class="tab">PSI</button>
           <button data-tab="groupcheck" class="tab">Group Check</button>
           <button data-tab="summary" class="tab">Summary</button>
           <button data-tab="suggested" class="tab" id="suggestedTabBtn" hidden>Review</button>
         </nav>
-        <div class="tabs-row-actions">
-          <button id="exportBtn" class="small ghost">Export to Excel (.csv) — 1 row per service</button>
-        </div>
       </div>
       <div class="tab-panel" id="tab-timeline"></div>
-      <div class="tab-panel" id="tab-butlersched" hidden></div>
-      <div class="tab-panel" id="tab-psi" hidden></div>
       <div class="tab-panel" id="tab-groupcheck" hidden></div>
       <div class="tab-panel" id="tab-summary" hidden></div>
       <div class="tab-panel" id="tab-suggested" hidden></div>
     </section>
+  </div>
+
+  <div id="page-butlersched" hidden>
+    <p class="hint" id="bsEmpty">Process bookings on the <strong>Grouping</strong> page first.</p>
+    <div class="tab-panel" id="tab-butlersched"></div>
+  </div>
+
+  <div id="page-psi" hidden>
+    <div class="tabs-row-actions" style="justify-content:flex-end; margin-bottom:14px;">
+      <button id="exportBtn" class="small ghost">Export to Excel (.csv) — 1 row per service</button>
+    </div>
+    <p class="hint" id="psiEmpty">Process bookings on the <strong>Grouping</strong> page first.</p>
+    <div class="tab-panel" id="tab-psi"></div>
   </div>
 
   <div id="page-readme" hidden>
@@ -540,14 +554,19 @@
       a time.</p>
       <p>Both persist across re-processing until you load new data.</p>
 
-      <h3>Butler Schedule tab</h3>
-      <p>One card per round (same grouping as everywhere else), following the 2026-08-27 booking-card mockup: a Group
+      <h3>Butler Schedule page</h3>
+      <p>One card per round (same grouping as everywhere else), following the confirmed booking-card mockups: a Group
       card shows a booking-count badge and an editable <strong>GroupName</strong> in place of a passenger name; every
-      quantity on the card (pax, suggested butler) is already the party-level sum, not one member's figures. Two status
-      dots — <strong>Assigned</strong> and <strong>Email Sent</strong> — are demo-only manual toggles: this prototype has
-      no real butler-assignment state, and doesn't model whether the Phase 2 contact email fires automatically on
-      assignment or from a separate staff action (still open on the requirement page). The mockup's full per-card icon
-      row isn't reproduced for the same reason — its field-by-field meaning is still deliberately deferred.</p>
+      summed quantity on the card (pax, buggy, suggested butler) is the party-level total, not one member's figures.
+      Two status dots — <strong>Assigned</strong> and <strong>Email Sent</strong> — are demo-only manual toggles: this
+      prototype has no real butler-assignment state, and doesn't model whether the Phase 2 contact email fires
+      automatically on assignment or from a separate staff action (still open on the requirement page).</p>
+      <p>The per-card icon row (confirmed 2026-08-27 against separate Arrival and Departure mockups) shows Arrival
+      Gate/Baggage Belt/Buggy/Flower on Arrival cards and Departure Gate/Check-in Counter/Lounge on Departure cards,
+      with Number of Passengers, Checked Baggage, Oversized Baggage, and Pets on both. Only <strong>Number of
+      Passengers</strong> and <strong>Buggy</strong> are real — this prototype's GG19/AOT export schema has no Gate,
+      Baggage Belt, Check-in Counter, Checked/Oversized Baggage, Pets, Flower, or Lounge fields, so those render as a
+      dimmed "—" rather than a fabricated number.</p>
 
       <h3>PSI tab</h3>
       <p>Shows the same field set and row grain as the CSV export (one row per service), headed by the date range
@@ -594,7 +613,7 @@
   // purely a display field for Group Check/Review — it plays no role in matching either.
   const COLUMNS = ["Status","Booking Number","Flight Number","Flight Type","Flight Date","Flight Time","Meeting Date","Meeting Time","Passenger 1","Other Passengers","Contact Name","Email","Phone","Pax 1 Phone","Special Request","Note","Partner","Adult","Child","Buggy","Booking Source","Individual Booking","Channel"];
   // Bump on any user-visible change to this file — shown in the top-nav version badge.
-  const APP_VERSION = "1.1.0";
+  const APP_VERSION = "1.3.0";
   let currentLogic = "aps"; // "original" (GG19 skill) | "aps" (APS group-booking matching engine) — default
 
   // ---------- staff-action state (APS logic only) ----------
@@ -1387,6 +1406,18 @@ COLUMNS,
   // ================= rendering =================
   const $ = sel => document.querySelector(sel);
   const csvInput = $("#csvInput"), statusLine = $("#statusLine"), results = $("#results");
+  // Butler Schedule and PSI moved to their own top-level pages (2026-08-27) — they no longer share
+  // #results' hidden state directly, so this keeps their "process first" placeholders in sync with
+  // it instead of each call site juggling three elements individually.
+  function setResultsVisible(visible){
+    results.hidden = !visible;
+    $("#bsEmpty").hidden = visible;
+    $("#psiEmpty").hidden = visible;
+    // Unlike Timeline/Group Check/Summary/Review (hidden along with #results above), Butler
+    // Schedule and PSI live in their own always-reachable top-level pages now, so stale cards
+    // would otherwise sit there, visible, right next to the "process first" placeholder.
+    if (!visible){ $("#tab-butlersched").innerHTML = ""; $("#tab-psi").innerHTML = ""; }
+  }
   let lastData = null;
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -1650,14 +1681,66 @@ COLUMNS,
       </div></div>`;
   }
 
-  // ================= Butler Schedule tab (2026-08-27 card redesign) =================
+  // ================= Butler Schedule tab (2026-08-27 card redesign, icon row added 2026-08-27) =================
   // One card per round (Task No. — same grouping unit as everywhere else), badged and named per the
   // booking-card mockup: a Group card shows a booking-count badge and its GroupName in place of a
-  // passenger name; every per-card quantity (pax, suggested butler) is already the party-level sum
-  // computed once in process(), so no separate aggregation is needed here. The per-card icon row from
-  // the mockup is intentionally not reproduced — its field-by-field meaning is still deliberately
-  // deferred by the human curator (see the requirement page's Open Items) — only the two status dots
-  // that ARE confirmed (Assigned/Unassigned, Email Sent) are shown, driven by demo-only toggles.
+  // passenger name; every per-card quantity (pax, buggy) is already the party-level sum, computed
+  // here the same way the rest of this file sums party quantities (party_adult/party_child are
+  // already per-party in process(); Buggy is summed across the round's own rows since no existing
+  // aggregate covers it).
+  //
+  // Icon set confirmed 2026-08-27 against two booking-card mockups (Arrival, Departure) — Buggy only
+  // appears on Arrival cards (matches the already-documented Buggy-Arrival-only rule elsewhere in
+  // this wiki) and Lounge only on Departure, mirroring the mockups exactly. Simple inline SVGs, not
+  // an icon font/library, matching this file's zero-external-dependency approach.
+  //
+  // Data gap, not modeled: this prototype's GG19/AOT export schema (COLUMNS, above) has no Gate,
+  // Baggage Belt, Check-in Counter, Checked Baggage, Oversized Baggage, Pets, or Flower/Lounge
+  // fields — only Passengers (Adult+Child) and Buggy are real. The rest render as a dimmed "—" with
+  // a tooltip explaining the gap, rather than fabricated numbers. See the requirement page's Open
+  // Questions for whether/how the real system would source these fields.
+  const CARD_ICONS = {
+    gate: `<svg viewBox="0 0 16 16"><path d="M3 2v12M13 2v12M3 8h10" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>`,
+    belt: `<svg viewBox="0 0 16 16"><rect x="3" y="3.5" width="7" height="5" rx="1" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M2 12.5c1-1.2 2-1.2 3 0s2 1.2 3 0 2-1.2 3 0 2 1.2 3 0" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`,
+    counter: `<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M5 8.2l2 2 4-4.4" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    pax: `<svg viewBox="0 0 16 16"><circle cx="8" cy="4.6" r="2.6" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M3 14c0-3 2.2-5 5-5s5 2 5 5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>`,
+    checkedBag: `<svg viewBox="0 0 16 16"><rect x="3" y="5" width="10" height="8" rx="1.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6.2 5V3.6c0-.6.5-1.1 1.1-1.1h1.4c.6 0 1.1.5 1.1 1.1V5" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>`,
+    oversizedBag: `<svg viewBox="0 0 16 16"><rect x="2" y="4.5" width="12" height="8.5" rx="2.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M5.5 4.5V3.2c0-.7.5-1.2 1.2-1.2h2.6c.7 0 1.2.5 1.2 1.2V4.5" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>`,
+    buggy: `<svg viewBox="0 0 16 16"><path d="M2 3h1.5l1.4 7.6a1.4 1.4 0 0 0 1.4 1.1h5.6a1.4 1.4 0 0 0 1.4-1.1L14.5 6H4" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="13.3" r="1" fill="currentColor"/><circle cx="11" cy="13.3" r="1" fill="currentColor"/></svg>`,
+    pets: `<svg viewBox="0 0 16 16"><circle cx="5" cy="5.3" r="1.25" fill="currentColor"/><circle cx="8" cy="4" r="1.25" fill="currentColor"/><circle cx="11" cy="5.3" r="1.25" fill="currentColor"/><path d="M8 8.3c-2.2 0-3.6 1.7-3.6 3.2 0 1.1.9 1.7 2 1.4.9-.2 1.1-.5 1.6-.5s.7.3 1.6.5c1.1.3 2-.3 2-1.4 0-1.5-1.4-3.2-3.6-3.2z" fill="currentColor"/></svg>`,
+    flower: `<svg viewBox="0 0 16 16"><g fill="currentColor"><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="4" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="12" cy="8" r="2"/></g></svg>`,
+    lounge: `<svg viewBox="0 0 16 16"><path d="M4 7V4.5A1.5 1.5 0 0 1 5.5 3h5A1.5 1.5 0 0 1 12 4.5V7" stroke="currentColor" stroke-width="1.3" fill="none"/><rect x="2.3" y="7" width="11.4" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M3.3 11.5V13M12.7 11.5V13" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>`,
+  };
+  const CARD_NA_TITLE = "Not in the GG19/AOT export this demo reads — see the requirement page's Open Questions";
+  // Field order/labels per the two confirmed mockups. `real` computes a value from the round's rows
+  // when this prototype's data actually carries it; everything else renders as "—" (CARD_NA_TITLE).
+  const ARRIVAL_ICON_FIELDS = [
+    { icon: "gate", label: "Arrival Gate" },
+    { icon: "belt", label: "Baggage Belt" },
+    { icon: "pax", label: "Number of Passengers", real: (first) => first.party_adult + first.party_child },
+    { icon: "checkedBag", label: "Checked Baggage" },
+    { icon: "oversizedBag", label: "Oversized Baggage" },
+    { icon: "buggy", label: "Buggy", real: (first, rows) => rows.reduce((s, r) => s + (Number(r.Buggy) || 0), 0) },
+    { icon: "pets", label: "Pets" },
+    { icon: "flower", label: "Flower" },
+  ];
+  const DEPARTURE_ICON_FIELDS = [
+    { icon: "gate", label: "Departure Gate" },
+    { icon: "counter", label: "Check-in Counter" },
+    { icon: "pax", label: "Number of Passengers", real: (first) => first.party_adult + first.party_child },
+    { icon: "checkedBag", label: "Checked Baggage" },
+    { icon: "oversizedBag", label: "Oversized Baggage" },
+    { icon: "pets", label: "Pets" },
+    { icon: "lounge", label: "Lounge" },
+  ];
+  function renderCardIcons(first, rows){
+    const fields = first["Flight Type"] === "Departure" ? DEPARTURE_ICON_FIELDS : ARRIVAL_ICON_FIELDS;
+    return `<div class="bs-icons">${fields.map(f => {
+      const val = f.real ? f.real(first, rows) : null;
+      return `<div class="bs-icon-row">${CARD_ICONS[f.icon]}<span class="val${val==null?" na":""}" ${val==null?`title="${esc(CARD_NA_TITLE)}"`:""}>${val==null?"—":val}</span><span class="lbl">${esc(f.label)}</span></div>`;
+    }).join("")}</div>`;
+  }
+
   function renderButlerSchedule(data){
     const byTask = new Map();
     data.df.forEach(r => {
@@ -1701,7 +1784,8 @@ COLUMNS,
           </div>
         </div>
         <div class="bs-name-row">${nameBlock}</div>
-        <div class="bs-stats">${statusChip} <span class="mono">${esc(first.group_id || bns[0])}</span> · ${esc(first.party_total_label)} · ${first.suggested_butler} butler${first.suggested_butler==1?"":"s"}</div>
+        <div class="bs-stats">${statusChip} <span class="mono">${esc(first.group_id || bns[0])}</span> · ${first.suggested_butler} suggested butler${first.suggested_butler==1?"":"s"}</div>
+        ${renderCardIcons(first, rows)}
         <div class="bs-contact">${contact}</div>
         <div class="bs-actions">
           <button type="button" class="small ${assigned?"btn-do-unassign":"btn-do-assign"} bs-assign-btn" data-key="${esc(roundKey)}" data-action="${assigned?"unassign":"assign"}">${assigned?"Unassign butler":"Assign butler"}</button>
@@ -1715,7 +1799,7 @@ COLUMNS,
         <span><span class="bs-dot on"></span>Assigned</span>
         <span><span class="bs-dot"></span>Unassigned</span>
         <span><span class="bs-dot sent on"></span>Email Sent</span>
-        <p class="hint">Assign/Email Sent are demo-only toggles — real butler-assignment state and the Phase 2 email-send trigger aren't modeled. Per-card icon meanings are still an open question, so only the two confirmed status dots are shown.</p>
+        <p class="hint">Assign/Email Sent are demo-only toggles — real butler-assignment state and the Phase 2 email-send trigger aren't modeled. Dimmed "—" icon values aren't in this demo's GG19/AOT export (Passengers and Buggy are the only real ones) — see Read Me.</p>
       </div>
       <div class="bs-grid">${cards}</div>`;
   }
@@ -1838,7 +1922,7 @@ COLUMNS,
       run();
       if (!statusLine.classList.contains("err")) statusLine.textContent = `${file.name}: ` + statusLine.textContent;
     } catch (err){
-      results.hidden = true;
+      setResultsVisible(false);
       statusLine.classList.add("err");
       statusLine.textContent = `⚠ ${file.name}: ${err.message}`;
     }
@@ -2050,7 +2134,7 @@ COLUMNS,
         $("#tab-timeline").hidden = false;
         $("#tab-suggested").hidden = true;
       }
-      results.hidden = false;
+      setResultsVisible(true);
       const excludedNote = data.summary.excludedNotConfirmed > 0
         ? ` (${data.summary.excludedNotConfirmed} in-window but not Confirmed, excluded)`
         : "";
@@ -2058,7 +2142,7 @@ COLUMNS,
       statusLine.textContent = `Processed ${rawRows.length} rows → ${data.summary.totalBookings} ${inWindowLabel}${excludedNote}, ${data.summary.totalTasks} travel parties, ${data.summary.totalButlers} suggested butlers.`;
     } catch (err){
       lastData = null;
-      results.hidden = true;
+      setResultsVisible(false);
       statusLine.classList.add("err");
       statusLine.textContent = "⚠ " + err.message;
     }
@@ -2067,7 +2151,7 @@ COLUMNS,
   $("#processBtn").addEventListener("click", run);
   $("#exportBtn").addEventListener("click", exportServiceSheet);
   $("#loadSample").addEventListener("click", () => { resetStaffActions(); csvInput.value = SAMPLE_CSV; resetDefaultWindow(); run(); });
-  $("#clearData").addEventListener("click", () => { resetStaffActions(); csvInput.value = ""; results.hidden = true; statusLine.classList.remove("err"); statusLine.textContent = "Cleared."; });
+  $("#clearData").addEventListener("click", () => { resetStaffActions(); csvInput.value = ""; lastData = null; setResultsVisible(false); statusLine.classList.remove("err"); statusLine.textContent = "Cleared."; });
   $("#xlsxFile").addEventListener("change", (e) => {
     const file = e.target.files[0];
     e.target.value = ""; // allow re-selecting the same file later
@@ -2183,7 +2267,7 @@ COLUMNS,
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      ["timeline","butlersched","psi","groupcheck","summary","suggested"].forEach(name => {
+      ["timeline","groupcheck","summary","suggested"].forEach(name => {
         $("#tab-"+name).hidden = name !== btn.dataset.tab;
       });
     });
@@ -2204,15 +2288,18 @@ COLUMNS,
     $("#winEnd").value = fmtWindowInput(tomorrow, 16, 0);
   }
 
-  // Top-level page nav (Grouping & PSI / Read Me) — independent of the inner .tab switching above,
-  // which only ever operates within the "Grouping & PSI" page.
+  // Top-level page nav (Grouping / Butler Schedule / PSI / Read Me), 2026-08-27: Butler Schedule and
+  // PSI moved out here from the inner .tab switching (which now only covers Timeline / Group Check /
+  // Summary / Review, all still nested inside the Grouping page) so they're reachable without first
+  // landing on Grouping. Both still depend on Grouping's own "Process bookings" step for data — see
+  // setResultsVisible's #bsEmpty/#psiEmpty placeholders above for the not-yet-processed state.
+  const PAGE_NAMES = ["app","butlersched","psi","readme"];
   $("#versionBadge").textContent = "v" + APP_VERSION;
   document.querySelectorAll(".page-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".page-tab").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      $("#page-app").hidden = btn.dataset.page !== "app";
-      $("#page-readme").hidden = btn.dataset.page !== "readme";
+      PAGE_NAMES.forEach(name => { $("#page-"+name).hidden = name !== btn.dataset.page; });
     });
   });
 

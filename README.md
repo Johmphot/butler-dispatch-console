@@ -22,7 +22,19 @@ Top-level pages: **Grouping** (booking import/window, plus Timeline/Group Check/
 sub-tabs) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
 export view, with the CSV export button) · **Read Me**.
 
-## What's new (v1.4.0)
+## What's new (v1.5.0)
+
+The **Review** queue got three changes. Buttons are now labelled with the action they perform —
+*Group together* instead of Confirm, *Not one party* instead of Dismiss — since the screen hosts
+two different queues that each had their own meaning of "Confirm"/"Dismiss"; the original verb
+names live in the tooltips. Suggested Duplicates gained a second action, **Group together**, which
+clears the duplicate flag *and* groups the bookings in one step — for the case where they're
+genuinely separate travellers who happen to have been booked identically. And every booking number
+is now clickable, opening a **detail modal** with the full record: the contact fields the matcher
+keys off, flight and passenger detail, notes, and the run's own grouping state including the
+evidence string explaining why the engine decided what it did.
+
+## Previously (v1.4.0)
 
 Fixed the **Assign butler** button (and Butler Schedule's Save/Email-sent controls, and PSI's
 Confirm/Dismiss/Mark Individual): the shared click-handling logic was still scoped to the old

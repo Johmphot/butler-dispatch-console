@@ -318,21 +318,21 @@
   /* Per-cell truncation indicator (2026-09-10): only the cells whose content actually overflows the
      clipped height are marked, measured after render rather than guessed from the text length.
      Everything is box-sizing:border-box here, so the indicator's 14px strip is ADDED to the 3-line
-     max-height rather than carved out of it — carving it out clipped the third line mid-glyph. */
+     max-height rather than carved out of it — carving it out clipped the third line mid-glyph.
+     No fade behind the marker (dropped 2026-09-10): it read as a smudge over the last line rather
+     than as a hint that more text follows, and the marker alone already says so. */
   .row-clip.is-clipped{max-height:calc(4.2em + 14px); padding-bottom:14px;}
   .row-clip.is-clipped::after{
     content:"\2026 more"; position:absolute; right:0; bottom:0; padding:0 4px;
     font-family:var(--font-sans); font-size:10px; line-height:14px; letter-spacing:.02em;
     color:var(--signal); background:var(--surface); border-radius:3px; pointer-events:none;
   }
-  .row-clip.is-clipped::before{
-    content:""; position:absolute; left:0; right:0; bottom:14px; height:10px; pointer-events:none;
-    background:linear-gradient(to bottom, transparent, var(--surface));
-  }
   tr.row-expanded .row-clip.is-clipped{max-height:none; padding-bottom:0;}
-  tr.row-expanded .row-clip.is-clipped::after,
-  tr.row-expanded .row-clip.is-clipped::before{content:none;}
+  tr.row-expanded .row-clip.is-clipped::after{content:none;}
   table.gc td.rowtoggle{width:1%; vertical-align:top;}
+  /* Whole row is the expand target (2026-09-10) — the button stays as the visible affordance. */
+  table.gc tr.row-clickable{cursor:pointer;}
+  table.gc tr.row-clickable:hover td{background:var(--surface-2);}
   table.gc td.paxcell, table.gc th.paxcell{min-width:300px;}
 
   .chip{
@@ -595,7 +595,7 @@
         <thead><tr><th>Button</th><th>What it does</th></tr></thead>
         <tbody>
           <tr><td><strong>Group together</strong></td><td>Accepts the cluster as one real party. It gets a <code>GroupBookingID</code>.</td></tr>
-          <tr><td><strong>Not one party</strong></td><td>Drops the suggestion permanently.</td></tr>
+          <tr><td><strong>Separate bookings</strong></td><td>Drops the suggestion permanently.</td></tr>
           <tr><td><strong>×</strong> next to a booking</td><td>Pulls that one booking out before you group the rest.</td></tr>
         </tbody>
       </table>
@@ -651,12 +651,14 @@
       <p>Open the <strong>PSI</strong> page. It shows one row per service round, the same grain and fields as the export
       file, headed by the date range covering every booking in the loaded file.</p>
       <ul>
-        <li>The same <strong>Group together / Not one party / Not a duplicate / Mark Individual</strong> actions are
+        <li>The same <strong>Group together / Separate bookings / Not a duplicate / Mark Individual</strong> actions are
         available inline, so you can finish your review here instead of going back.</li>
         <li>Long cells are clipped so rows stay level. The <strong>Expand</strong> button in the leading column opens
         the <em>whole</em> row — booking numbers, contact, passengers and special request together.</li>
-        <li>A cell that is cut off shows a <strong>"… more"</strong> marker in its bottom-right corner. Only cells that
+        <li>A cell that is cut off shows a <strong>"…more"</strong> marker in its bottom-right corner. Only cells that
         genuinely overflow are marked, so you can tell at a glance which fields are hiding content.</li>
+        <li>You can click <em>anywhere</em> in a clipped row to open it, not just the Expand button. Rows with nothing
+        hidden aren't clickable.</li>
         <li>Click <strong>Export to Excel (.csv) — 1 row per service</strong> to download the sheet.</li>
       </ul>
       <p>Exported columns, in order: Task No., GroupBookingID, Group Status, Flight Date, Flight Time, Flight Number,
@@ -765,7 +767,7 @@
       <h3>Review tab</h3>
       <p>A cluster that reaches Needs Review lands here, where staff can <strong>Group together</strong> (the spec's
       <em>Confirm</em>) to make it a real, staff-confirmed group (badged <code>CONFIRMED</code>, gets its own
-      <code>GroupBookingID</code> same as an auto-grouped one), mark it <strong>Not one party</strong> (<em>Dismiss</em>)
+      <code>GroupBookingID</code> same as an auto-grouped one), mark it <strong>Separate bookings</strong> (<em>Dismiss</em>)
       to drop it permanently from the queue, or <strong>Adjust</strong> it via the <strong>×</strong> next to a booking —
       pull one booking out of the cluster (it over-matched) before grouping the rest; the removed booking becomes its own
       standalone entry (badged <code>ADJUSTED</code>) rather than being re-clustered against the other removed bookings.
@@ -869,7 +871,7 @@
   // purely a display field for Group Check/Review — it plays no role in matching either.
   const COLUMNS = ["Status","Booking Number","Flight Number","Flight Type","Flight Date","Flight Time","Meeting Date","Meeting Time","Passenger 1","Other Passengers","Contact Name","Email","Phone","Pax 1 Phone","Special Request","Note","Partner","Adult","Child","Buggy","Booking Source","Individual Booking","Channel","Pax 1 Nationality"];
   // Bump on any user-visible change to this file — shown in the top-nav version badge.
-  const APP_VERSION = "1.9.1";
+  const APP_VERSION = "1.10.0";
   let currentLogic = "aps"; // "original" (GG19 skill) | "aps" (APS group-booking matching engine) — default
 
   // ---------- staff-action state (APS logic only) ----------
@@ -1905,7 +1907,7 @@ COLUMNS,
           </div>
           <div style="display:flex; gap:8px; flex-shrink:0;">
             <button type="button" class="small primary suggest-btn" data-action="confirm" data-sig="${esc(c.sig)}" title="Confirm: group these bookings under one GroupBookingID">Group together</button>
-            <button type="button" class="small ghost suggest-btn" data-action="dismiss" data-sig="${esc(c.sig)}" title="Dismiss: these bookings aren't one party — remove the suggestion">Not one party</button>
+            <button type="button" class="small ghost suggest-btn" data-action="dismiss" data-sig="${esc(c.sig)}" title="Dismiss: these bookings aren't one party — remove the suggestion">Separate bookings</button>
           </div>
         </div>
       </div>`).join("")
@@ -1913,7 +1915,7 @@ COLUMNS,
     // Buttons are labelled with the action they perform rather than the spec's internal verb names
     // (Confirm / Dismiss / Adjust), which stay the canonical names in the requirement and in each
     // button's tooltip — staff shouldn't have to learn a vocabulary to use the queue.
-    const reviewNote = `<div class="rule-note">Suggested Related Bookings — <strong>Group together</strong> (Confirm) puts these under one GroupBookingID, <strong>Not one party</strong> (Dismiss) removes the suggestion, and the <strong>×</strong> next to a booking (Adjust) pulls just that one out before you group the rest. Click a booking number for its full details.</div>`;
+    const reviewNote = `<div class="rule-note">Suggested Related Bookings — <strong>Group together</strong> (Confirm) puts these under one GroupBookingID, <strong>Separate bookings</strong> (Dismiss) removes the suggestion, and the <strong>×</strong> next to a booking (Adjust) pulls just that one out before you group the rest. Click a booking number for its full details.</div>`;
 
     if (!dupes.length && !clusters.length){
       return `<p style="color:var(--ink-dim)">Nothing to review in this window — every booking is either high-confidence, unmatched, or already resolved.</p>`;
@@ -2364,6 +2366,9 @@ COLUMNS,
       });
       const btn = tr.querySelector(".row-toggle-btn");
       if (btn) btn.hidden = !any && !tr.classList.contains("row-expanded");
+      // Only a row that has something to show is clickable, so the cursor/hover never promises
+      // an expand that wouldn't happen.
+      tr.classList.toggle("row-clickable", !!btn && !btn.hidden);
     });
   }
 
@@ -2392,7 +2397,7 @@ COLUMNS,
       if (isAps && first){
         const taskSig = rows.map(r => r["Booking Number"]).sort().join(",");
         if (reviewBySig.has(taskSig)){
-          actionCell = `<button type="button" class="small primary suggest-btn" data-action="confirm" data-sig="${esc(taskSig)}" title="Confirm: group these bookings under one GroupBookingID">Group together</button> <button type="button" class="small ghost suggest-btn" data-action="dismiss" data-sig="${esc(taskSig)}" title="Dismiss: these bookings aren't one party — remove the suggestion">Not one party</button>`;
+          actionCell = `<button type="button" class="small primary suggest-btn" data-action="confirm" data-sig="${esc(taskSig)}" title="Confirm: group these bookings under one GroupBookingID">Group together</button> <button type="button" class="small ghost suggest-btn" data-action="dismiss" data-sig="${esc(taskSig)}" title="Dismiss: these bookings aren't one party — remove the suggestion">Separate bookings</button>`;
         } else if (first.status_code === "DUPE" && dupeSigByBn.has(first["Booking Number"])){
           actionCell = `<button type="button" class="small ghost dupe-btn" data-sig="${esc(dupeSigByBn.get(first["Booking Number"]))}" title="Not a duplicate — clear the flag and let ordinary matching decide">Not a duplicate</button>`;
         } else if (rows.length === 1 && first.status_code === "INDIVIDUAL"){
@@ -2532,6 +2537,20 @@ COLUMNS,
   // two moved out to their own top-level pages (siblings of #results, not descendants) during the
   // nav reorganization — clicks no longer bubbled up to a listener that was never an ancestor.
   document.addEventListener("click", (e) => {
+    // Clicking anywhere in a clipped row toggles it (2026-09-10), so staff don't have to hit the
+    // small button. Interactive cells are excluded — a Review action, a booking-number link or a
+    // text field inside the row must keep its own behavior, and a click that's really a text
+    // selection shouldn't collapse the row out from under the reader.
+    const plainRow = e.target.closest("#tab-psi tr.row-clickable");
+    if (plainRow && !e.target.closest("button, a, input, select, textarea, label")
+        && String(window.getSelection() || "").length === 0){
+      const btn = plainRow.querySelector(".row-toggle-btn");
+      if (btn && !btn.hidden){
+        const expanded = plainRow.classList.toggle("row-expanded");
+        btn.textContent = expanded ? "Collapse" : "Expand";
+      }
+      return;
+    }
     const rowBtn = e.target.closest(".row-toggle-btn");
     if (rowBtn){
       // Pure display toggle — no app state, so it doesn't call run() and doesn't survive the next

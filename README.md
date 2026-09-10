@@ -22,7 +22,17 @@ Top-level pages: **Grouping** (booking import/window, plus Timeline/Group Check/
 sub-tabs) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
 export view, with the CSV export button) · **Ops Guide** · **Read Me**.
 
-## What's new (v1.9.1)
+## What's new (v1.10.0)
+
+The Review queue's dismiss action is relabelled **Separate bookings** (was "Not one party"); the
+spec's own verb, *Dismiss*, still lives in the tooltip. On the PSI table you can now click
+**anywhere in a clipped row** to expand it, not just the small Expand button — buttons, links and
+text fields inside the row keep their own behavior, and a click that's really a text selection
+won't collapse the row mid-read. Only rows with something hidden get the pointer cursor. The
+gradient fade behind the "…more" marker is gone; it read as a smudge over the last line of text
+rather than as a hint that more follows.
+
+## Previously (v1.9.1)
 
 A new **Ops Guide** page carries a step-by-step walkthrough for Airport Operations staff — loading
 an export, choosing the grouping logic, clearing the Review queue, verifying in Group Check, then

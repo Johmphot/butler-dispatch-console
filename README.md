@@ -20,9 +20,27 @@ or click **Load sample export** to try it with demo data.
 
 Top-level pages: **Grouping** (booking import/window, plus Timeline/Group Check/Summary/Review
 sub-tabs) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
-export view, with the CSV export button) · **Read Me**.
+export view, with the CSV export button) · **Ops Guide** · **Read Me**.
 
-## What's new (v1.5.0)
+## What's new (v1.9.1)
+
+A new **Ops Guide** page carries a step-by-step walkthrough for Airport Operations staff — loading
+an export, choosing the grouping logic, clearing the Review queue, verifying in Group Check, then
+producing the dispatch sheet — plus a badge glossary and a plain-language account of what the
+matching engine keys off.
+
+**Butler Schedule and PSI** got a field rework. **Contact** now shows contact name, contact email
+and contact phone. **Pax Name** runs one line per passenger, formatted `Name | Nationality | Phone`,
+with `-` standing in for a blank nationality or phone; nationality reads the real export's own
+`Pax 1 Nationality` column, which the demo data leaves blank. The **Details** column is renamed
+**Special Request**, which is the only thing it ever carried.
+
+On the PSI table, Expand/Collapse was widened from the Special Request cell to the **whole row**, so
+booking numbers, contact, passengers and special request open together behind one toggle. Each cell
+that is actually cut off now carries its own **"… more"** marker, measured from the laid-out DOM
+rather than guessed from text length, so it tracks the real column width and follows a resize.
+
+## Previously (v1.5.0)
 
 The **Review** queue got three changes. Buttons are now labelled with the action they perform —
 *Group together* instead of Confirm, *Not one party* instead of Dismiss — since the screen hosts

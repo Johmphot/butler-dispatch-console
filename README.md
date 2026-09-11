@@ -19,10 +19,42 @@ and the xlsx-unzip library are embedded inline). Upload a `.xlsx` booking export
 or click **Load sample export** to try it with demo data.
 
 Top-level pages: **Grouping** (booking import/window, plus Timeline/Group Check/Summary/Review
-sub-tabs) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
+sub-tabs, Group Check first) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
 export view, with the CSV export button) · **Ops Guide** · **Read Me**.
 
-## What's new (v1.10.0)
+## What's new (v1.17.0)
+
+**Phase 1's bulk bar, on Group Check.** Booking Management's bulk actions are adapted onto this
+screen so the behaviour can be tried before it's built: **Group**, **Ungroup**, **Rename group**,
+**Merge groups** and the four-field **bulk group edit**. The bar floats over the bottom of the
+window once something is selected. Tick bookings, or click a group to select all of it. The rules
+are live too — a disabled **Group** button names the first blocking condition it hits (differing
+meeting dates, differing airports, mixed arrivals and departures, a booking that isn't Confirmed or
+Processing, one already in a group), and two warnings warn-and-allow: a partial-group selection, and
+a meeting-time spread over 3 hours. No Undo, per the 2026-09-01 decision.
+
+**`GroupBookingID` is now Option 1** — `G<Airport>-<6-digit running>`, e.g. `GP-000123`, selected by
+Airport Operations on 2026-09-11. No date component, one continuous counter per airport, and the ID
+is minted once and **never changes**. ⚠️ No service date can be read off it, unlike the superseded
+format.
+
+**Group Status split into `Round Type` and `Grouping Source`** (the 2026-09-09 decision). Round Type
+is Group/Individual; Grouping Source records **origin** — Auto, Confirmed, Review, Manual, plus
+Adjusted and Duplicate — and deliberately doesn't flip to Manual when staff edit an auto-formed
+group. In the export, Round Type takes the old column position and Grouping Source is appended last.
+
+**Group Check reads as rounds, not rows.** It's now the tab the Grouping page opens on. A round's
+task number prints once with a `×N` count and its members are joined by a dotted rule; consecutive
+groups alternate between two tints so neighbours don't merge; solo bookings carry no tint at all. A
+suggestion carries **Group together** / **Separate bookings** once per round, and its member rows
+carry no action at all until the cluster is decided.
+
+**Also**: the Group column leads with the GroupName over the reference, on both Group Check and PSI;
+`GroupName` is now its own export column beside `GroupBookingID`; and a bug is fixed where
+**Separate bookings** dropped the suggestion from the queue but left the bookings grouped, stuck
+reading Group / Review.
+
+## Previously (v1.10.0)
 
 The Review queue's dismiss action is relabelled **Separate bookings** (was "Not one party"); the
 spec's own verb, *Dismiss*, still lives in the tooltip. On the PSI table you can now click

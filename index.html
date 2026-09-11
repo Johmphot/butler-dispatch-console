@@ -306,6 +306,13 @@
   table.gc tr:last-child td{border-bottom:none;}
   table.gc td.mono, table.gc th.mono{font-family:var(--font-mono);}
   table.gc tr.task-start td{border-top:2px solid var(--line);}
+  /* One round reads as one block (2026-09-11): the task number prints once, and its continuation rows
+     are joined by a dotted rule instead of repeating the number. */
+  table.gc tr.task-cont td{border-top:1px dotted var(--line); border-bottom:none;}
+  table.gc td.taskcell{white-space:nowrap;}
+  table.gc td.taskcell .task-count{display:inline-block; margin-left:5px; padding:0 5px; border-radius:8px;
+    background:var(--neutral-soft); color:var(--ink-dim); font-size:10px; font-family:var(--font-sans);}
+  table.gc td.rowacts{white-space:nowrap;}
   table.gc td.num{font-family:var(--font-mono); font-variant-numeric:tabular-nums; text-align:right;}
   table.gc td.evidence{color:var(--ink-dim); max-width:230px;}
   table.gc td.pax{white-space:pre-line;}
@@ -391,6 +398,54 @@
   button.btn-do-unassign{background:var(--neutral-soft); color:var(--neutral-ink); border-color:var(--line);}
 
   /* ---- Booking detail modal ---- */
+  /* Phase 1 bulk bar (2026-09-10) */
+  .bulk-bar-host{position:fixed; left:50%; transform:translateX(-50%); bottom:16px; z-index:55;
+    width:min(1100px, calc(100vw - 32px));}
+  .bulk-bar{border:1px solid var(--line); border-radius:10px; padding:10px 14px; background:var(--surface);
+    box-shadow:0 8px 30px rgba(0,0,0,.18);}
+  body.has-bulk-bar .app{padding-bottom:150px;}
+  .bulk-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .bulk-hint{font-size:12px;}
+  .bulk-why{font-size:11px; color:var(--ink-dim); margin-right:6px;}
+  .bulk-act[disabled]{opacity:.45; cursor:not-allowed;}
+  .bulk-warn{margin-top:8px; font-size:12px; padding:6px 9px; border-radius:6px;
+    background:var(--neutral-soft); border-left:3px solid var(--warn, #B8860B); color:var(--ink);}
+  .bulk-note{margin-top:8px; font-size:11px; color:var(--ink-dim);}
+  table.gc td.selcell, table.gc th.selcell{width:1%; text-align:center;}
+  table.gc tr.row-selected td{background:var(--surface-2);}
+  .group-tag{font-family:var(--font-mono); font-size:12px; background:none; border:1px dashed var(--line);
+    border-radius:4px; padding:1px 5px; color:var(--signal); cursor:pointer;}
+  .group-tag:hover{border-style:solid;}
+  .group-tag{white-space:nowrap;}
+  .group-block{display:block; white-space:nowrap;}
+  .group-block .gname{display:block; font-family:var(--font-sans); font-weight:600; color:var(--ink); font-size:12px;}
+  .group-block .gid{display:block; margin-top:3px; font-size:11px; color:var(--ink-dim);}
+  .group-block .gid.solo{color:var(--signal); font-size:12px;}
+  .group-tag .gname{display:block; font-family:var(--font-sans); font-weight:600; color:var(--ink); font-size:12px;}
+  .group-tag .gid{display:block; margin-top:3px; font-size:11px; color:var(--ink-dim);}
+  .group-tag .gid.solo{color:var(--signal); font-size:12px;}
+  /* Wide enough for GP-000123 on one line, name or no name. */
+  table.gc td.groupcell, table.gc th.groupcell{min-width:132px; white-space:nowrap;}
+
+  /* Group vs individual rows read apart at a glance (2026-09-11) — a tinted left edge on every row of
+     a real group, none on a solo booking. Kept to a rail plus a wash so the status chips still lead. */
+  table.gc tr.rt-group td:first-child{box-shadow:inset 3px 0 0 var(--signal);}
+  /* Consecutive groups alternate their wash (2026-09-11) — one tint for every group made two
+     neighbouring parties read as a single block, with only a hairline between them. */
+  table.gc tr.rt-group.band-a td{background:color-mix(in srgb, var(--signal) 7%, transparent);}
+  table.gc tr.rt-group.band-b td{background:color-mix(in srgb, var(--slate) 9%, transparent);}
+  table.gc tr.rt-group.band-b td:first-child{box-shadow:inset 3px 0 0 var(--slate);}
+  table.gc tr.rt-individual td{background:transparent;}
+  /* A new round always starts on a visible edge, tint or no tint. */
+  table.gc tr.task-start td{border-top:2px solid var(--line);}
+  table.gc tr.row-selected td{background:var(--surface-2);}
+  .bulk-field{display:block; margin:0 0 12px; font-size:12px; color:var(--ink-dim);}
+  .bulk-field input{display:block; width:100%; margin-top:4px; padding:6px 8px; font-family:var(--font-mono);
+    font-size:13px; border:1px solid var(--line); border-radius:5px; background:var(--surface); color:var(--ink);}
+  .bulk-field .helper{color:var(--ink-dim); font-style:italic;}
+  .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:60; max-width:min(560px, 92vw);
+    background:var(--ink); color:var(--paper); padding:10px 14px; border-radius:8px; font-size:13px; line-height:1.45;
+    box-shadow:0 6px 24px rgba(0,0,0,.25);}
   .modal-backdrop{
     position:fixed; inset:0; background:rgba(8,12,16,.62); z-index:50;
     display:flex; align-items:center; justify-content:center; padding:24px;
@@ -517,14 +572,14 @@
     <section class="panel results" id="results" hidden>
       <div class="tabs-row">
         <nav class="tabs">
-          <button data-tab="timeline" class="tab active">Timeline</button>
-          <button data-tab="groupcheck" class="tab">Group Check</button>
+          <button data-tab="groupcheck" class="tab active">Group Check</button>
+          <button data-tab="timeline" class="tab">Timeline</button>
           <button data-tab="summary" class="tab">Summary</button>
           <button data-tab="suggested" class="tab" id="suggestedTabBtn" hidden>Review</button>
         </nav>
       </div>
-      <div class="tab-panel" id="tab-timeline"></div>
-      <div class="tab-panel" id="tab-groupcheck" hidden></div>
+      <div class="tab-panel" id="tab-groupcheck"></div>
+      <div class="tab-panel" id="tab-timeline" hidden></div>
       <div class="tab-panel" id="tab-summary" hidden></div>
       <div class="tab-panel" id="tab-suggested" hidden></div>
     </section>
@@ -628,6 +683,30 @@
         dates, such as an arrival plus an onward connecting flight. They show a "Connects to →" indicator without merging.
         One active link per round; <strong>Unlink</strong> removes it.</li>
       </ul>
+      <p><strong>The bulk bar</strong> handles whole selections. It floats over the bottom of the window
+      as soon as you tick something, so it stays with you as you scroll. Tick bookings, or click a group
+      to select that entire group in one go. Then:</p>
+      <ul>
+        <li><strong>Group</strong> — combines the selection into one group. If the button is greyed out it
+        tells you which rule stopped it: different meeting dates, different airports, mixed
+        arrivals and departures, a booking that isn't Confirmed or Processing, or a booking already in a
+        group. Differing flight numbers never block.</li>
+        <li><strong>Ungroup</strong> — removes the selected bookings from their group. The others keep
+        theirs, and a group left with fewer than two members dissolves. The message says when it did.</li>
+        <li><strong>Rename group</strong> — sets the group name, the same one the Butler Schedule card
+        shows. It renames the whole group, not just what you ticked.</li>
+        <li><strong>Merge groups</strong> — combines two or more selected groups into one. Select
+        bookings from each group you want merged.</li>
+        <li><strong>Edit bookings</strong> — changes flight number, flight date, meeting time and, for
+        departures, meeting point across the selection. It changes booking details, not who is in the
+        group.</li>
+      </ul>
+      <p>Two messages warn without stopping you. One appears when you have selected only part of a group,
+      because going ahead will split it. The other appears when the selected meeting times span more than
+      three hours, since a group is one round with one set of butlers. <strong>None of these four actions
+      has an Undo.</strong> Ungroup in particular can dissolve a group in one click, and rebuilding it by
+      hand gives it a brand new group reference.</p>
+
       <p>The other two tabs are read-only checks. <strong>Timeline</strong> draws a band per party across the window, for
       spotting crowding and gaps before you commit to butler numbers. <strong>Summary</strong> gives suggested butlers per
       task plus a status breakdown across all bookings.</p>
@@ -661,8 +740,8 @@
         hidden aren't clickable.</li>
         <li>Click <strong>Export to Excel (.csv) — 1 row per service</strong> to download the sheet.</li>
       </ul>
-      <p>Exported columns, in order: Task No., GroupBookingID, Group Status, Flight Date, Flight Time, Flight Number,
-      Type, Booking Number, Partner, Contact, Pax Name, Special Request.</p>
+      <p>Exported columns, in order: Task No., GroupBookingID, Round Type, Flight Date, Flight Time, Flight Number,
+      Type, Booking Number, Partner, Contact, Pax Name, Special Request, Grouping Source.</p>
       <ul>
         <li><strong>Contact</strong> — contact name, contact email and contact phone, in that order.</li>
         <li><strong>Pax Name</strong> — one line per passenger, <code>Name | Nationality | Phone</code>. A blank
@@ -670,6 +749,16 @@
         passengers 2+ show <code>-</code> for both.</li>
         <li><strong>Special Request</strong> — this column was headed "Details" before 2026-09-10.</li>
       </ul>
+
+      <h3>Reading Round Type and Grouping Source</h3>
+      <p>Two separate columns, not one status. <strong>Round Type</strong> says whether this is a
+      <strong>Group</strong> or an <strong>Individual</strong> booking. <strong>Grouping Source</strong>
+      says how it got that way: <strong>Auto</strong> when the engine grouped it, <strong>Confirmed</strong>
+      when you accepted a suggestion, <strong>Review</strong> while a suggestion is still waiting on you,
+      <strong>Manual</strong> for anything you did by hand, and <strong>Adjusted</strong> or
+      <strong>Duplicate</strong> for the two special cases. A dash means the engine found no match.</p>
+      <p>Editing a group the engine formed does <em>not</em> change its source to Manual. That is
+      deliberate: it keeps the record of which groups the engine got wrong.</p>
 
       <h3>Reading the status badges</h3>
       <table>
@@ -683,9 +772,11 @@
           <tr><td>DUPE</td><td>Held out of grouping as a suspected duplicate until you clear it.</td></tr>
         </tbody>
       </table>
-      <p>A <code>GroupBookingID</code> reads <code>G&lt;Service&gt;-&lt;Meeting Date YYMMDD&gt;-&lt;4-digit running&gt;</code>,
-      e.g. <code>GP-260821-0001</code>. The Service letter comes from the Booking Number: P is Bangkok Suvarnabhumi, D is
-      Don Mueang, H is Phuket. The running number restarts per Service and Meeting Date, handed out in Meeting-time order.</p>
+      <p>A <code>GroupBookingID</code> reads <code>G&lt;Airport&gt;-&lt;6-digit running&gt;</code>, e.g.
+      <code>GP-000123</code>. The airport letter comes from the Booking Number: P is Bangkok Suvarnabhumi, D is Don Mueang,
+      H is Phuket. ⚠️ <strong>There is no date in it</strong> — earlier material said you could read the service date off a
+      group reference, and that is no longer true. The number is one continuous sequence per airport, and a group keeps the
+      same reference for life even if its service date moves.</p>
 
       <h3>What the engine matches on</h3>
       <p>Bookings cluster on <strong>Airport + Flight + Meeting Date + Partner</strong>. Two otherwise matching bookings
@@ -756,9 +847,12 @@
       suggested, or grouped (the original logic is unaffected — it processes any non-blank Status).</p>
 
       <h3>GroupBookingID format</h3>
-      <p><code>G&lt;Service&gt;-&lt;Meeting Date YYMMDD&gt;-&lt;4-digit running&gt;</code>, e.g. <code>GP-260821-0001</code>
-      — Service letter reused from the party's Booking Number, independent of Booking ID otherwise. Running number resets
-      per Service + Meeting Date, assigned in Meeting-time order. Written for <span class="chip status-AUTO">AUTO</span>
+      <p><code>G&lt;Airport&gt;-&lt;6-digit running&gt;</code>, e.g. <code>GP-000123</code> — <strong>Option 1,
+      selected by Airport Operations on 2026-09-11</strong> over a format carrying the service date. The airport letter is
+      reused from the party's Booking Number, independent of Booking ID otherwise, and the running number is one
+      continuous sequence per airport with <strong>no daily reset</strong>. The ID is minted once and <strong>never
+      changes</strong>, so a whole-party date move strands nothing that cites it — and <strong>no date can be read off
+      it</strong>, unlike the superseded format. Here it is assigned in Meeting-time order. Written for <span class="chip status-AUTO">AUTO</span>
       and <span class="chip status-CONFIRMED">CONFIRMED</span> parties — a plain
       <span class="chip status-REVIEW">REVIEW</span> cluster is still an unconfirmed suggestion, so it gets none; solo
       bookings get none either. Under the original logic, <code>GroupBookingID</code> doesn't exist — the
@@ -783,6 +877,64 @@
       record — the five contact fields the matcher keys off grouped together, plus flight, passengers, notes, and this
       run's derived grouping state (status, <code>GroupBookingID</code>, party totals, and the evidence string that
       explains why the engine decided what it did). Close it with the Close button, a click outside it, or Escape.</p>
+
+      <h3>Group Check row grouping &amp; inline Review actions</h3>
+      <p>A round's <strong>Task number prints once</strong>, on its first row, with a <code>×N</code> member count beside
+      it; the rows below are joined by a dotted rule (2026-09-11). Before this, the only thing marking a group was the
+      same number repeating down the column, which read as duplication rather than as one round.</p>
+      <p><strong>Group rows carry a tinted left rail and a faint wash; solo bookings carry neither</strong> (2026-09-11),
+      so the two read apart before you get to the Round Type column. <strong>Consecutive groups alternate between a teal
+      and a slate wash</strong> — with one tint for every group, two neighbouring parties read as a single block separated
+      only by a hairline.</p>
+      <p>A suggestion still in <span class="chip status-REVIEW">REVIEW</span> carries the Review queue's own two actions
+      inline — <strong>Group together</strong> and <strong>Separate bookings</strong> — <strong>once per round</strong>, on
+      its first row, since they act on the whole cluster rather than on the row they sit in. <strong>Its member rows carry
+      no action at all</strong>: Mark Individual would be a second, conflicting way to answer the same question, offered
+      per member — decide the cluster first, one way or the other, and the per-booking toggle returns.
+      Same signature and same effect as the Review tab and the PSI view; this is another place to review from, not a
+      separate mechanism. Rows that aren't suggestions keep the Mark/Unmark Individual button.</p>
+
+      <h3>Round Type &amp; Grouping Source</h3>
+      <p>The single Group Status field <strong>split into two on 2026-09-09</strong>, and Group Check and
+      the PSI view both follow it. <strong>Round Type</strong> is <code>Group</code> or
+      <code>Individual</code> and never changes meaning. <strong>Grouping Source</strong> records
+      <em>origin</em>: <code>Auto</code>, <code>Confirmed</code>, <code>Review</code>, <code>Manual</code>
+      for anything a staff action produced, plus <code>Adjusted</code> and <code>Duplicate</code> for the
+      two states this prototype has that the spec doesn't name. A booking the engine simply found no
+      match for has no source at all and shows <code>—</code>.</p>
+      <p>Origin <strong>does not flip to Manual when staff edit an auto-formed group</strong> — merging two
+      auto-grouped parties leaves both reading <code>Auto</code>. Flipping it would erase the one signal
+      showing the engine formed a group a human then had to correct. In the export, Round Type takes the
+      old Group Status position and <strong>Grouping Source is appended last</strong>, so anything reading
+      the sheet by position doesn't shift.</p>
+
+      <h3>Bulk bar (Phase 1 actions)</h3>
+      <p>Group Check carries Booking Management's Phase 1 bulk bar, adapted onto this screen so the
+      behavior can be tried. It <strong>floats over the bottom of the window</strong> once something is
+      selected, so staff who scroll down to tick the last member of a party don't have to scroll back up
+      to act. Tick bookings, or click a group to select all of it (Flow 2.2). Five actions — Merge Groups
+      moved onto the bar on 2026-09-10, since selecting bookings is now the same gesture its old panel
+      needed:</p>
+      <p><strong>Group</strong> (Flow 2.1) combines the selection into one staff-created group — badged
+      <span class="chip status-CONFIRMED">CONFIRMED</span> with its own <code>GroupBookingID</code>, the
+      same standing as confirming a suggestion from the Review queue. It is enabled only when the
+      selection is groupable, and <strong>a disabled button always states why</strong>, showing the first
+      blocking condition in the spec's own order: fewer than 2 selected, differing Meeting Dates,
+      differing airports, mixed Arrival/Departure, a booking that isn't Confirmed or Processing, or a
+      booking already in a group. Flight number deliberately never blocks.</p>
+      <p><strong>Ungroup</strong> (Flow 2.4) clears the group tag from the selected bookings only; the
+      others keep theirs. If that leaves the group below 2 members it <strong>dissolves</strong>, and the
+      toast says so. <strong>Rename group</strong> (Flow 4) sets the same <code>GroupName</code> the
+      Butler Schedule card edits inline, for the whole group rather than the selection.
+      <strong>Merge groups</strong> combines two or more selected groups under one
+      <code>GroupBookingID</code> — group-level, so it takes every member of each selected group, not just
+      the ticked ones. <strong>Edit bookings</strong> is the bulk group edit — exactly four fields (flight number, flight
+      date, meeting time, and meeting point on Departure groups), changing booking data rather than
+      membership, with the "Different Flights" helper text where members disagree.</p>
+      <p>Two warnings <strong>warn and allow</strong> rather than block: a selection covering only part of
+      a group (Flow 2.3 — splitting is a real outcome, and the warning is what makes it deliberate), and
+      a meeting-time spread over 3 hours (⚠ placeholder threshold — the real one is an open Ops
+      question). <strong>No Undo</strong>, per the 2026-09-01 decision.</p>
 
       <h3>Merge Groups &amp; Connecting Itinerary</h3>
       <p>From Group Check, staff can <strong>Merge Groups</strong> — select 2+ existing groups that turn out to be the
@@ -809,6 +961,11 @@
       dimmed "—" rather than a fabricated number.</p>
 
       <h3>PSI tab</h3>
+      <p>The <strong>Group</strong> column is styled as Group Check's (2026-09-11) — GroupName leads, the
+      <code>GroupBookingID</code> sits under it, and an unnamed group shows the ID alone. The <strong>file</strong> keeps them apart:
+      <code>GroupBookingID</code> and <code>GroupName</code> are separate flat columns, per the spec's own column set.
+      <code>GroupName</code> has no column of its own <em>on screen</em> — the Group cell already leads with it, so a second
+      column would just repeat it.</p>
       <p>Shows the same field set and row grain as the CSV export (one row per service), headed by the date range
       spanning every booking in the currently loaded file — independent of the Meeting-Time window. Offers the same
       Confirm / Dismiss / Not Duplicated / Mark Individual actions inline, so it doubles as another place to review from
@@ -816,8 +973,10 @@
       overflows.</p>
 
       <h3>CSV export &amp; display fields</h3>
-      <p>Export fields, in order: Task No. / GroupBookingID / Group Status / Flight Date / Flight Time / Flight Number /
-      Type / Booking Number / Partner / Contact / Pax Name / Special Request. <strong>Contact</strong> packs Contact Name,
+      <p>Export fields, in order: Task No. / GroupBookingID / <strong>GroupName</strong> (added 2026-09-11, blank when the
+      group is unnamed or the row is a solo booking) / <strong>Round Type</strong> / Flight Date / Flight Time /
+      Flight Number / Type / Booking Number / Partner / Contact / Pax Name / Special Request /
+      <strong>Grouping Source</strong>. <strong>Contact</strong> packs Contact Name,
       Contact Email and Contact Phone into one cell; <strong>Pax Name</strong> carries Pax 1 Name with its nationality and
       Pax 1 Phone, followed by the Other Passengers text. The last column was named "Details" until 2026-09-10 and is now
       headed <strong>Special Request</strong>, which is the only field it ever carried.</p>
@@ -831,6 +990,15 @@
 
       <h3>What's not modeled</h3>
       <ul>
+        <li>The bulk edit's <strong>airport/direction rejection</strong>. The rule is real, but this demo
+        reads airport from the Booking Number's own Service letter, not from the flight number, so no
+        flight-number edit can move a party between airports and the rejection never has cause to fire.</li>
+        <li>The <strong>"Only Confirmed or Processing"</strong> block rarely fires here: the APS engine
+        already scopes its candidate pool to Confirmed, so a Processing or Cancelled booking never
+        reaches Group Check to be selected in the first place.</li>
+        <li><code>GroupBookingID</code> running numbers are <strong>re-minted on every Process</strong>
+        in this demo, so a bulk edit that moves a party's meeting time can renumber it. The real scheme
+        never reuses or reissues a number.</li>
         <li>The Duplicate-&amp;-Group/creation-time override of the Confirmed-only rule.</li>
         <li>Merge's butler-conflict resolution step — this prototype has no butler-assignment state at all; it only ever
         suggests a headcount, never assigns a named butler to a booking.</li>
@@ -841,6 +1009,20 @@
 
 <!-- Booking detail modal (2026-08-28). Lives outside .app so it overlays every page, and outside the
      innerHTML-replaced tab panels so a re-render behind it doesn't tear it down mid-read. -->
+<!-- Bulk-bar dialogs (Phase 1 adaptation, 2026-09-10): Rename group (Flow 4) and the four-field
+     bulk group edit. Both live outside .app for the same reason the booking modal does. -->
+<div id="bulkModal" class="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bulkModalTitle">
+    <div class="modal-head">
+      <h3 id="bulkModalTitle">Edit</h3>
+      <button type="button" class="small ghost bulk-modal-close" aria-label="Close">Close</button>
+    </div>
+    <div class="modal-body" id="bulkModalBody"></div>
+  </div>
+</div>
+<div id="bulkBarHost" class="bulk-bar-host" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
 <div id="bookingModal" class="modal-backdrop" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bookingModalTitle">
     <div class="modal-head">
@@ -869,9 +1051,9 @@
   // proposed `IndividualBooking` toggle. Both are blank/no-op for the original GG19 logic, same
   // treatment as GroupBookingID not existing under that logic. "Channel" (Website/Mobile/Backoffice) is
   // purely a display field for Group Check/Review — it plays no role in matching either.
-  const COLUMNS = ["Status","Booking Number","Flight Number","Flight Type","Flight Date","Flight Time","Meeting Date","Meeting Time","Passenger 1","Other Passengers","Contact Name","Email","Phone","Pax 1 Phone","Special Request","Note","Partner","Adult","Child","Buggy","Booking Source","Individual Booking","Channel","Pax 1 Nationality"];
+  const COLUMNS = ["Status","Booking Number","Flight Number","Flight Type","Flight Date","Flight Time","Meeting Date","Meeting Time","Passenger 1","Other Passengers","Contact Name","Email","Phone","Pax 1 Phone","Special Request","Note","Partner","Adult","Child","Buggy","Booking Source","Individual Booking","Channel","Pax 1 Nationality","Meeting Point"];
   // Bump on any user-visible change to this file — shown in the top-nav version badge.
-  const APP_VERSION = "1.10.0";
+  const APP_VERSION = "1.17.0";
   let currentLogic = "aps"; // "original" (GG19 skill) | "aps" (APS group-booking matching engine) — default
 
   // ---------- staff-action state (APS logic only) ----------
@@ -910,6 +1092,14 @@
   // automatically or on a staff action (that's still an open question on the requirement page) —
   // they just let the two status dots be demonstrated independently. GroupName is the one field
   // here that mirrors a real staff-settable value from the spec's data model.
+  // Phase 1 bulk bar (added 2026-09-10) — Booking Management's three group actions plus the
+  // four-field bulk group edit, adapted onto Group Check so Ops can see the behavior in action.
+  // Group reuses the Merge union-find above (same mechanism, different gesture). Ungroup and the
+  // edits need their own persistent, Booking-Number-keyed state so they survive re-processing.
+  let manualGroupedBns = new Set(); // Flow 2.1 — bookings staff grouped from the bulk bar
+  let ungroupedBns = new Set();   // Flow 2.4 — pulled out of their group by staff, stay solo
+  let bulkEdits = new Map();      // Booking Number -> {"Flight Number","Flight Date","Meeting Time","Meeting Point"}
+  let selectedBns = new Set();    // current Group Check selection (transient, but survives re-render)
   let groupNames = new Map();     // round key -> staff-set GroupName
   let butlerAssigned = new Set(); // round key -> Assigned (demo toggle)
   let emailSent = new Set();      // round key -> Email Sent (demo toggle)
@@ -917,6 +1107,7 @@
     manualIndividual = new Map(); confirmedClusters = new Set(); dismissedClusters = new Set();
     adjustedOut = new Map(); mergeParent = new Map(); connectingLinks = new Map(); notDuplicated = new Set();
     groupNames = new Map(); butlerAssigned = new Set(); emailSent = new Set();
+    manualGroupedBns = new Set(); ungroupedBns = new Set(); bulkEdits = new Map(); selectedBns = new Set();
   }
 
   function pad2(n){ return String(n).padStart(2,"0"); }
@@ -925,45 +1116,45 @@
 
   const SAMPLE_CSV = [
 COLUMNS,
-["Confirmed","PC100001","TG910","Arrival","{D1}","06:20","{D1}","06:00","Maria Fraser 1/4","","Maria Fraser","maria.fraser@example.com","","0895556666","","","GG19 Direct","1","0","0","","","Backoffice",""],
-["Confirmed","PC100002","TG910","Arrival","{D1}","06:20","{D1}","06:00","James Fraser 2/4","","Maria Fraser","maria.fraser@example.com","","0895556666","","","GG19 Direct","1","0","0","","","Backoffice",""],
-["Confirmed","PC100003","TG910","Arrival","{D1}","06:20","{D1}","06:00","Anna Fraser 3/4","","Maria Fraser","maria.fraser@example.com","","0895556666","","","GG19 Direct","0","1","0","","","Backoffice",""],
-["Confirmed","PC100004","TG910","Arrival","{D1}","06:20","{D1}","06:00","Leo Fraser 4/4","","Maria Fraser","maria.fraser@example.com","","0895556666","","","GG19 Direct","0","1","0","","","Backoffice",""],
-["Confirmed","PC100005","TG910","Arrival","{D1}","06:20","{D1}","06:00","Marco Boldt 1/4","","Marco Boldt","marco.boldt@example.com","","0891112222","","","AOT Partner","1","0","0","","","Backoffice",""],
-["Confirmed","PC100006","TG910","Arrival","{D1}","06:20","{D1}","06:00","Elena Boldt 2/4","","Marco Boldt","marco.boldt@example.com","","0891112222","","","AOT Partner","1","0","0","","","Backoffice",""],
-["Confirmed","PC100007","TG910","Arrival","{D1}","06:20","{D1}","06:00","Nils Boldt 3/4","","Marco Boldt","marco.boldt@example.com","","0891112222","","","AOT Partner","0","1","0","","","Backoffice",""],
-["Confirmed","PC100008","TG910","Arrival","{D1}","06:20","{D1}","06:00","Tomas Boldt 4/4","","Marco Boldt","marco.boldt@example.com","","0891112222","","","AOT Partner","0","1","0","","","Backoffice",""],
-["Confirmed","PC100009","KE652","Departure","{D1}","16:10","{D1}","14:30","Ahyeon Choi","","Ahyeon Choi","","","0810001111","Group booking 1/3","","GG19 Direct","1","0","0","","","Backoffice",""],
-["Confirmed","PC100010","KE652","Departure","{D1}","16:10","{D1}","14:30","Minah Kim","","Ahyeon Choi","","","0810001111","Please seat together 2/3","","GG19 Direct","1","0","0","","","Backoffice",""],
-["Confirmed","PC100011","KE652","Departure","{D1}","16:10","{D1}","14:30","Jiwoo Park","","Ahyeon Choi","","","0810001111","Same group as above 3/3","","GG19 Direct","1","0","0","","","Backoffice",""],
-["Confirmed","PC100012","CX700","Arrival","{D1}","08:00","{D1}","08:15","Robert Tan","Susan Tan, Emily Tan (age 8)","Robert Tan","","","0865554444","","","GG19 Direct","2","1","1","","","Website",""],
-["Confirmed","PC100013","EK373","Departure","{D1}","21:45","{D1}","20:00","David Wong","","David Wong","","","0823334444","","Traveling together with PC100014","AOT Partner","1","0","0","","","Backoffice",""],
-["Confirmed","PC100014","EK373","Departure","{D1}","21:45","{D1}","20:00","Grace Wong","","David Wong","","","0823334444","","See PC100013 for lead contact","AOT Partner","1","0","0","","","Backoffice",""],
-["Confirmed","PC100015","SQ970","Arrival","{D2}","06:50","{D2}","07:00","Somchai Boonmee","","Somchai Boonmee","","","0812223333","","","GG19 Direct","1","0","0","","","Website",""],
-["Confirmed","PC100016","SQ970","Arrival","{D2}","06:50","{D2}","07:00","Aroon Boonmee","","Somchai Boonmee","","","0812223333","","","GG19 Direct","1","0","0","","","Website",""],
-["Confirmed","PC100017","TG920","Departure","{D2}","07:10","{D2}","05:30","John Smith","","John Smith","","","0899990001","","","GG19 Direct","1","0","0","","","Mobile",""],
-["Confirmed","PC100018","TG920","Departure","{D2}","07:10","{D2}","05:30","John Smith","","John Smith","","","0899990002","","","GG19 Direct","1","0","0","","","Mobile",""],
-["Confirmed","PC100019","NH847","Arrival","{D1}","10:30","{D1}","10:45","Naoko Sato","","Naoko Sato","","","0867778888","","","GG19 Direct","1","0","1","","","Mobile",""],
-["Confirmed","PC100020","LH773","Departure","{D2}","10:40","{D2}","09:00","Peter Klein","","Peter Klein","","","0891234567","","","AOT Partner","1","0","0","","","Website",""],
-["Confirmed","PC100021","EY406","Arrival","{D1}","23:00","{D1}","23:10","Fatima Al-Rashid","","Fatima Al-Rashid","","","0898887777","","","GG19 Direct","2","2","1","","","Website",""],
-["Confirmed","PC100022","QF1","Departure","{D2}","08:20","{D2}","06:40","Carlos Mendez","","Carlos Mendez","","","0855551234","","","AOT Partner","1","0","0","","","Mobile",""],
-["Confirmed","PC100023","PG205","Departure","{D2}","13:40","{D2}","12:00","Piyawan Suksai","","Piyawan Suksai","","","0811110001","","","Sunny Tours Co.","1","0","0","","","Backoffice",""],
-["Confirmed","PC100024","PG205","Departure","{D2}","13:40","{D2}","12:00","Narong Chaiyasit","","Narong Chaiyasit","","","0811110002","","","Sunny Tours Co.","1","0","0","","","Backoffice",""],
-["Confirmed","PC100025","VN660","Arrival","{D1}","15:00","{D1}","15:20","Suda Charoensuk 1/2","","Suda C.","","","0822220001","","","Bangkok Travel Hub","1","0","0","","","Backoffice",""],
-["Confirmed","PC100026","VN660","Arrival","{D1}","15:00","{D1}","15:20","Anong Wattana 2/2","","Anong W.","","","0822220002","","","Bangkok Travel Hub","1","0","0","","","Backoffice",""],
-["Cancelled","PC100027","TG888","Arrival","{D1}","07:30","{D1}","07:45","Somsak Prasert","","Somsak Prasert","","","0833330001","","","GG19 Direct","1","0","0","","","Website",""],
-["Confirmed","PC100028","TG700","Arrival","{D1}","09:15","{D1}","09:00","Robert Lim","","Robert Lim","","","0866667777","","","GG19 Direct","1","0","0","","","Website",""],
-["Confirmed","PC100029","TG700","Arrival","{D1}","09:15","{D1}","09:00","Robert Lim","","Robert Lim","","","0866667777","","","GG19 Direct","1","0","0","","","Website",""],
-["Confirmed","PC100030","MU564","Departure","{D2}","10:00","{D2}","10:00","Kittipat Suwan","","Corp Travel Desk","","","0877778888","","","Siam Corporate Travel","1","0","0","","","Backoffice",""],
-["Confirmed","PC100031","MU564","Departure","{D2}","10:00","{D2}","10:00","Weerapong Boon","","Kittipat Suwan","","","0877779999","","","Siam Corporate Travel","1","0","0","","","Backoffice",""],
-["Confirmed","PC100032","MH192","Arrival","{D1}","07:50","{D1}","08:00","Wichai Somboon","","Wichai Somboon","","","0865001100","","","AOT Partner","1","0","0","","","Backoffice",""],
-["Confirmed","DC100033","MH192","Arrival","{D1}","07:50","{D1}","08:00","Araya Somboon","","Araya Somboon","","","0865001199","","","AOT Partner","1","0","0","","","Backoffice",""],
-["Confirmed","PC100034","KL836","Arrival","{D2}","09:40","{D2}","09:30","Melissa Tan","","Melissa Tan","melissa.tan@example.com","","0899001111","","","","1","0","0","Klook OCTO","","Mobile",""],
-["Confirmed","PC100035","KL836","Arrival","{D2}","09:40","{D2}","09:30","David Tan","","Melissa Tan","melissa.tan@example.com","","0899001111","","","","1","0","0","Klook OCTO","","Mobile",""],
-["Confirmed","PC100036","KL836","Arrival","{D2}","09:40","{D2}","09:30","Anucha Srisai","","Anucha Srisai","","0877001122","0877001122","","","","1","0","0","","","Website",""],
-["Confirmed","PC100037","KL836","Arrival","{D2}","09:40","{D2}","09:30","Ladda Wong","","Ladda Wong","","0877003344","0877003344","","","","1","0","0","","","Website",""],
-["Confirmed","PC100038","AI332","Departure","{D1}","19:20","{D1}","17:30","Nattapong Chai","","Nattapong Chai","nattapong.chai@example.com","","0866009900","","","Siam Corporate Travel","1","0","0","","","Backoffice",""],
-["Confirmed","PC100039","AI332","Departure","{D1}","19:20","{D1}","17:30","Sirinya Chai","","Nattapong Chai","nattapong.chai@example.com","","0866009900","","","Siam Corporate Travel","1","0","0","","Yes","Backoffice",""]
+["Confirmed","PC100001","TG910","Arrival","{D1}","06:20","{D1}","06:00","Maria Fraser 1/4","","Maria Fraser","maria.fraser@example.com","","0895556666","","","GG19 Direct","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100002","TG910","Arrival","{D1}","06:20","{D1}","06:00","James Fraser 2/4","","Maria Fraser","maria.fraser@example.com","","0895556666","","","GG19 Direct","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100003","TG910","Arrival","{D1}","06:20","{D1}","06:00","Anna Fraser 3/4","","Maria Fraser","maria.fraser@example.com","","0895556666","","","GG19 Direct","0","1","0","","","Backoffice","",""],
+["Confirmed","PC100004","TG910","Arrival","{D1}","06:20","{D1}","06:00","Leo Fraser 4/4","","Maria Fraser","maria.fraser@example.com","","0895556666","","","GG19 Direct","0","1","0","","","Backoffice","",""],
+["Confirmed","PC100005","TG910","Arrival","{D1}","06:20","{D1}","06:00","Marco Boldt 1/4","","Marco Boldt","marco.boldt@example.com","","0891112222","","","AOT Partner","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100006","TG910","Arrival","{D1}","06:20","{D1}","06:00","Elena Boldt 2/4","","Marco Boldt","marco.boldt@example.com","","0891112222","","","AOT Partner","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100007","TG910","Arrival","{D1}","06:20","{D1}","06:00","Nils Boldt 3/4","","Marco Boldt","marco.boldt@example.com","","0891112222","","","AOT Partner","0","1","0","","","Backoffice","",""],
+["Confirmed","PC100008","TG910","Arrival","{D1}","06:20","{D1}","06:00","Tomas Boldt 4/4","","Marco Boldt","marco.boldt@example.com","","0891112222","","","AOT Partner","0","1","0","","","Backoffice","",""],
+["Confirmed","PC100009","KE652","Departure","{D1}","16:10","{D1}","14:30","Ahyeon Choi","","Ahyeon Choi","","","0810001111","Group booking 1/3","","GG19 Direct","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100010","KE652","Departure","{D1}","16:10","{D1}","14:30","Minah Kim","","Ahyeon Choi","","","0810001111","Please seat together 2/3","","GG19 Direct","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100011","KE652","Departure","{D1}","16:10","{D1}","14:30","Jiwoo Park","","Ahyeon Choi","","","0810001111","Same group as above 3/3","","GG19 Direct","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100012","CX700","Arrival","{D1}","08:00","{D1}","08:15","Robert Tan","Susan Tan, Emily Tan (age 8)","Robert Tan","","","0865554444","","","GG19 Direct","2","1","1","","","Website","",""],
+["Confirmed","PC100013","EK373","Departure","{D1}","21:45","{D1}","20:00","David Wong","","David Wong","","","0823334444","","Traveling together with PC100014","AOT Partner","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100014","EK373","Departure","{D1}","21:45","{D1}","20:00","Grace Wong","","David Wong","","","0823334444","","See PC100013 for lead contact","AOT Partner","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100015","SQ970","Arrival","{D2}","06:50","{D2}","07:00","Somchai Boonmee","","Somchai Boonmee","","","0812223333","","","GG19 Direct","1","0","0","","","Website","",""],
+["Confirmed","PC100016","SQ970","Arrival","{D2}","06:50","{D2}","07:00","Aroon Boonmee","","Somchai Boonmee","","","0812223333","","","GG19 Direct","1","0","0","","","Website","",""],
+["Confirmed","PC100017","TG920","Departure","{D2}","07:10","{D2}","05:30","John Smith","","John Smith","","","0899990001","","","GG19 Direct","1","0","0","","","Mobile","",""],
+["Confirmed","PC100018","TG920","Departure","{D2}","07:10","{D2}","05:30","John Smith","","John Smith","","","0899990002","","","GG19 Direct","1","0","0","","","Mobile","",""],
+["Confirmed","PC100019","NH847","Arrival","{D1}","10:30","{D1}","10:45","Naoko Sato","","Naoko Sato","","","0867778888","","","GG19 Direct","1","0","1","","","Mobile","",""],
+["Confirmed","PC100020","LH773","Departure","{D2}","10:40","{D2}","09:00","Peter Klein","","Peter Klein","","","0891234567","","","AOT Partner","1","0","0","","","Website","",""],
+["Confirmed","PC100021","EY406","Arrival","{D1}","23:00","{D1}","23:10","Fatima Al-Rashid","","Fatima Al-Rashid","","","0898887777","","","GG19 Direct","2","2","1","","","Website","",""],
+["Confirmed","PC100022","QF1","Departure","{D2}","08:20","{D2}","06:40","Carlos Mendez","","Carlos Mendez","","","0855551234","","","AOT Partner","1","0","0","","","Mobile","",""],
+["Confirmed","PC100023","PG205","Departure","{D2}","13:40","{D2}","12:00","Piyawan Suksai","","Piyawan Suksai","","","0811110001","","","Sunny Tours Co.","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100024","PG205","Departure","{D2}","13:40","{D2}","12:00","Narong Chaiyasit","","Narong Chaiyasit","","","0811110002","","","Sunny Tours Co.","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100025","VN660","Arrival","{D1}","15:00","{D1}","15:20","Suda Charoensuk 1/2","","Suda C.","","","0822220001","","","Bangkok Travel Hub","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100026","VN660","Arrival","{D1}","15:00","{D1}","15:20","Anong Wattana 2/2","","Anong W.","","","0822220002","","","Bangkok Travel Hub","1","0","0","","","Backoffice","",""],
+["Cancelled","PC100027","TG888","Arrival","{D1}","07:30","{D1}","07:45","Somsak Prasert","","Somsak Prasert","","","0833330001","","","GG19 Direct","1","0","0","","","Website","",""],
+["Confirmed","PC100028","TG700","Arrival","{D1}","09:15","{D1}","09:00","Robert Lim","","Robert Lim","","","0866667777","","","GG19 Direct","1","0","0","","","Website","",""],
+["Confirmed","PC100029","TG700","Arrival","{D1}","09:15","{D1}","09:00","Robert Lim","","Robert Lim","","","0866667777","","","GG19 Direct","1","0","0","","","Website","",""],
+["Confirmed","PC100030","MU564","Departure","{D2}","10:00","{D2}","10:00","Kittipat Suwan","","Corp Travel Desk","","","0877778888","","","Siam Corporate Travel","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100031","MU564","Departure","{D2}","10:00","{D2}","10:00","Weerapong Boon","","Kittipat Suwan","","","0877779999","","","Siam Corporate Travel","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100032","MH192","Arrival","{D1}","07:50","{D1}","08:00","Wichai Somboon","","Wichai Somboon","","","0865001100","","","AOT Partner","1","0","0","","","Backoffice","",""],
+["Confirmed","DC100033","MH192","Arrival","{D1}","07:50","{D1}","08:00","Araya Somboon","","Araya Somboon","","","0865001199","","","AOT Partner","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100034","KL836","Arrival","{D2}","09:40","{D2}","09:30","Melissa Tan","","Melissa Tan","melissa.tan@example.com","","0899001111","","","","1","0","0","Klook OCTO","","Mobile","",""],
+["Confirmed","PC100035","KL836","Arrival","{D2}","09:40","{D2}","09:30","David Tan","","Melissa Tan","melissa.tan@example.com","","0899001111","","","","1","0","0","Klook OCTO","","Mobile","",""],
+["Confirmed","PC100036","KL836","Arrival","{D2}","09:40","{D2}","09:30","Anucha Srisai","","Anucha Srisai","","0877001122","0877001122","","","","1","0","0","","","Website","",""],
+["Confirmed","PC100037","KL836","Arrival","{D2}","09:40","{D2}","09:30","Ladda Wong","","Ladda Wong","","0877003344","0877003344","","","","1","0","0","","","Website","",""],
+["Confirmed","PC100038","AI332","Departure","{D1}","19:20","{D1}","17:30","Nattapong Chai","","Nattapong Chai","nattapong.chai@example.com","","0866009900","","","Siam Corporate Travel","1","0","0","","","Backoffice","",""],
+["Confirmed","PC100039","AI332","Departure","{D1}","19:20","{D1}","17:30","Sirinya Chai","","Nattapong Chai","nattapong.chai@example.com","","0866009900","","","Siam Corporate Travel","1","0","0","","Yes","Backoffice","",""]
   ].map(row => row.map(csvQuote).join(",")).join("\n")
    .replace(/\{D1\}/g, fmtDMY(new Date()))
    .replace(/\{D2\}/g, fmtDMY(new Date(Date.now() + 86400000)));
@@ -1363,6 +1554,8 @@ COLUMNS,
     // all act on a cluster signature (its members' Booking Numbers, sorted) rather than row_id, since
     // row_id is reassigned fresh on every run().
     const reviewClusters = [];
+    // Bookings staff separated via Dismiss — a staff decision, so Grouping Source reads Manual.
+    const separatedIds = new Set();
 
     clusters.forEach(ids => {
       const octo = isOctoSourced(byId.get(ids[0]));
@@ -1403,6 +1596,17 @@ COLUMNS,
         });
         return;
       }
+      // Dismiss ("Separate bookings") means these are NOT one party, so the cluster must never be
+      // unioned (bug found 2026-09-11: it was, so the bookings stayed a Group stuck on source Review —
+      // dismissing only dropped the suggestion from the queue and left the grouping itself in place).
+      if (dismissedClusters.has(rawSig)){
+        activeIds.forEach(id => {
+          status.set(id, "INDIVIDUAL");
+          evidence.set(id, `Separated by staff — dismissed from the Suggested Related Bookings queue (${signalLabel} matched, but staff confirmed these aren't one party)`);
+          separatedIds.add(id);
+        });
+        return;
+      }
       for (let i=1;i<activeIds.length;i++) union(activeIds[0], activeIds[i]);
 
       const { anyCorroboration, meetsAutoBar, borderline, basis } = scoreCluster(activeIds);
@@ -1422,10 +1626,10 @@ COLUMNS,
           evidence.set(id, `Staff-confirmed via Suggested Related Bookings — ${reviewNote.replace(" — never auto-grouped", "")}`);
         } else {
           status.set(id, "REVIEW");
-          evidence.set(id, `Needs review — ${reviewNote}` + (dismissedClusters.has(rawSig) ? " (Dismissed from the Suggested Related Bookings queue)" : ""));
+          evidence.set(id, `Needs review — ${reviewNote}`);
         }
       });
-      if (!meetsAutoBar && !confirmedClusters.has(rawSig) && !dismissedClusters.has(rawSig)){
+      if (!meetsAutoBar && !confirmedClusters.has(rawSig)){
         reviewClusters.push({ sig: rawSig, bookings: activeIds.map(bookingInfo), basis: basis || "no corroborating field" });
       }
     });
@@ -1449,13 +1653,61 @@ COLUMNS,
       // Duplicate-flagged and IndividualBooking-flagged rows both stay their own solo party — neither
       // mechanism merges a booking into a party on its own (item 9's Duplicate Detection is structurally
       // separate from grouping; the IndividualBooking toggle is an explicit staff opt-out).
-      r.party_root = (duplicateIds.has(r.row_id) || individualIds.has(r.row_id)) ? r.row_id : find(r.row_id);
-      r.status_code = status.get(r.row_id);
-      r.evidence = evidence.get(r.row_id);
+      // Ungroup (Flow 2.4) pulls a booking out of whatever party it would otherwise land in — it
+      // outranks clustering AND a prior Merge, the same way the IndividualBooking toggle does, but
+      // stays a separate flag so Group Check's Mark/Unmark button isn't confused by it.
+      const wasUngrouped = ungroupedBns.has((r["Booking Number"] || "").trim());
+      // An Ungrouped row needs a root that CANNOT collide with the party it just left. Using its own
+      // row_id isn't enough: that row_id may already BE the union-find root the others still point at,
+      // which would silently pull it back into the party's totals and member count.
+      r.party_root = wasUngrouped ? `UG:${(r["Booking Number"]||"").trim()}`
+        : (duplicateIds.has(r.row_id) || individualIds.has(r.row_id)) ? r.row_id : find(r.row_id);
+      r.status_code = wasUngrouped && !duplicateIds.has(r.row_id) ? "INDIVIDUAL" : status.get(r.row_id);
+      r.evidence = wasUngrouped && !duplicateIds.has(r.row_id)
+        ? "Removed from its group by staff (Ungroup)"
+        : evidence.get(r.row_id);
       // The literal toggle state, kept separate from status_code now that "no match" and "toggle on"
       // share one INDIVIDUAL badge — Group Check's Mark/Unmark button needs to know which one it is.
       r.individual_flag = individualIds.has(r.row_id);
     });
+
+    // ---- Round Type + Grouping Source (2026-09-09 spec change) ----
+    // The single Group Status field split into two independent facts, so Phase 3 adds VALUES to the
+    // second column instead of redefining the first. Round Type is Group/Individual and never changes
+    // meaning; Grouping Source records ORIGIN — and deliberately does not flip to Manual when staff
+    // later edit an auto-formed group, since that would erase the only signal showing the engine
+    // formed a group a human had to correct.
+    const SOURCE_BY_STATUS = { AUTO: "Auto", CONFIRMED: "Confirmed", REVIEW: "Review",
+      ADJUSTED: "Adjusted", DUPE: "Duplicate" };
+    const sizeByRoot = new Map();
+    df.forEach(r => sizeByRoot.set(r.party_root, (sizeByRoot.get(r.party_root) || 0) + 1));
+    df.forEach(r => {
+      const bn = (r["Booking Number"]||"").trim();
+      r.round_type = (sizeByRoot.get(r.party_root) || 1) > 1 ? "Group" : "Individual";
+      r.grouping_source = manualGroupedBns.has(bn) || ungroupedBns.has(bn) || r.individual_flag || separatedIds.has(r.row_id)
+        ? "Manual"
+        : (SOURCE_BY_STATUS[r.status_code] || "");
+    });
+
+    // A bulk-bar Group (Flow 2.1) makes a real, staff-confirmed group — same standing as confirming a
+    // suggestion from the Review queue, so it badges CONFIRMED and mints a GroupBookingID. Applied per
+    // PARTY: every member of a party that any manually-grouped booking landed in is confirmed with it.
+    if (manualGroupedBns.size){
+      const partySize = new Map();
+      df.forEach(r => partySize.set(r.party_root, (partySize.get(r.party_root) || 0) + 1));
+      // Only a party that still has 2+ members counts — Ungroup can leave a lone survivor behind, and
+      // a group of one is not a group: it reads as INDIVIDUAL like any other solo booking.
+      const manualRoots = new Set(df.filter(r => manualGroupedBns.has((r["Booking Number"]||"").trim()))
+        .map(r => r.party_root).filter(root => (partySize.get(root) || 0) > 1));
+      df.forEach(r => {
+        if (!manualRoots.has(r.party_root)) return;
+        if (duplicateIds.has(r.row_id) || individualIds.has(r.row_id) || ungroupedBns.has((r["Booking Number"]||"").trim())) return;
+        r.status_code = "CONFIRMED";
+        r.evidence = "Grouped by staff from the bulk bar (Flow 2.1)";
+        r.round_type = "Group";
+        r.grouping_source = "Manual";
+      });
+    }
 
     return { reviewClusters, dupeClusters };
   }
@@ -1465,6 +1717,10 @@ COLUMNS,
     if (winStart === null || winEnd === null) throw new Error("Could not parse the meeting-time window. Use YYYY-MM-DD HH:MM.");
 
     const all = rawRows.map((r, i) => {
+      // Bulk group edit (Phase 1) rewrites booking DATA, not membership, so it's applied to the raw
+      // row before anything downstream reads it — matching/timestamps/exports all see the new values.
+      const edit = bulkEdits.get((r["Booking Number"] || "").trim());
+      if (edit) r = Object.assign({}, r, edit);
       const meetingTS = combineTS(r["Meeting Date"], r["Meeting Time"]);
       const flightTS = combineTS(r["Flight Date"], r["Flight Time"]);
       return Object.assign({}, r, { row_id: i, Meeting_DT: meetingTS, Flight_DT: flightTS,
@@ -1554,13 +1810,15 @@ COLUMNS,
           // queue (item 2's Confirm action) — both are real groups and get an ID. A plain REVIEW
           // cluster is still an unconfirmed suggestion, so it gets none.
           if (rep.status_code !== "AUTO" && rep.status_code !== "CONFIRMED") return;
+          // Option 1, selected by Airport Operations 2026-09-11: G<Airport>-<6-digit running>, with
+          // NO date component and one continuous counter per airport (no daily reset). The ID is minted
+          // once and never re-minted, so nothing citing it is ever stranded by a service-date move.
+          // ⚠️ Demo simplification: a real counter is unique across all time and persisted; this one
+          // restarts at 000001 on every Process, so numbers shift as the loaded data changes.
           const serviceLetter = (rep["Booking Number"] || "").trim().charAt(0).toUpperCase() || "?";
-          const dParts = parseDMY(rep["Meeting Date"]);
-          const dateCode = dParts ? `${pad2(dParts.y % 100)}${pad2(dParts.mo)}${pad2(dParts.d)}` : "??????";
-          const scopeKey = `${serviceLetter}|${dateCode}`;
-          const running = (scopeCounters.get(scopeKey) || 0) + 1;
-          scopeCounters.set(scopeKey, running);
-          groupBookingIds.set(root, `G${serviceLetter}-${dateCode}-${String(running).padStart(4,"0")}`);
+          const running = (scopeCounters.get(serviceLetter) || 0) + 1;
+          scopeCounters.set(serviceLetter, running);
+          groupBookingIds.set(root, `G${serviceLetter}-${String(running).padStart(6,"0")}`);
         });
       df.forEach(r => r.group_id = groupBookingIds.get(r.party_root) || "");
     } else {
@@ -1572,6 +1830,11 @@ COLUMNS,
         }
       });
       df.forEach(r => r.group_id = groupIds.get(r.party_root) || "");
+      // The original GG19 logic has no engine confidence to report, so Round Type still applies but
+      // Grouping Source has nothing meaningful to say.
+      const origSize = new Map();
+      df.forEach(r => origSize.set(r.party_root, (origSize.get(r.party_root) || 0) + 1));
+      df.forEach(r => { r.round_type = (origSize.get(r.party_root) || 1) > 1 ? "Group" : "Individual"; r.grouping_source = ""; });
     }
 
     // ---- Link/Unlink Connecting Itinerary (staff action, item 2) — a nullable cross-reference
@@ -1738,7 +2001,8 @@ COLUMNS,
   function renderActionPanels(data){
     const rounds = computeRounds(data.df);
     const groupRounds = rounds.filter(rd => rd.isGroup);
-    const mergePanel = groupRounds.length >= 2 ? `
+    // Merge moved onto the floating bulk bar 2026-09-10 — same action, one gesture instead of two.
+    const mergePanel = false ? `
       <div class="panel action-panel">
         <div class="title">Merge Groups</div>
         <div class="hint">Select 2+ groups to merge under one GroupBookingID.</div>
@@ -1763,26 +2027,293 @@ COLUMNS,
     return mergePanel + linkPanel;
   }
 
+
+  // ================= Phase 1 bulk bar (2026-09-10) =================
+  // Adapts Booking Management's bulk-bar group actions onto Group Check so Ops can try them:
+  // Group (Flow 2.1), Ungroup (Flow 2.4), Rename group (Flow 4) and the four-field bulk group edit.
+  // The interesting part of the spec is the RULES, not the buttons — Group states the first blocking
+  // reason it hits, and two warnings (partial-group selection, >3h meeting spread) warn-and-allow.
+  const SPREAD_WARN_HOURS = 3; // ⚠ placeholder — the real threshold is still an open Ops question
+
+  // GroupName is keyed by round key (member Booking Numbers, sorted+joined) so it survives
+  // re-processing and ID re-minting; Group Check needs the reverse lookup from a GroupBookingID.
+  function roundKeyForGroup(data, gid){
+    return [...new Set((data.df||[]).filter(r => r.group_id === gid).map(r => (r["Booking Number"]||"").trim()))].sort().join(",");
+  }
+
+  function selectedRows(data){
+    return (data && data.df ? data.df : []).filter(r => selectedBns.has((r["Booking Number"]||"").trim()));
+  }
+
+  // First blocking condition wins, in the spec's own order — staff can't tell a rule from a bug
+  // unless a disabled button says which rule stopped it.
+  function groupBlockReason(rows){
+    if (rows.length < 2) return "Select at least 2 bookings to group.";
+    const uniq = f => new Set(rows.map(f));
+    if (uniq(r => (r["Meeting Date"]||"").trim()).size > 1) return "These bookings have different meeting dates.";
+    if (uniq(r => airportOf(r)).size > 1) return "These bookings are at different airports.";
+    if (uniq(r => (r["Flight Type"]||"").trim().toLowerCase()).size > 1) return "These bookings mix arrivals and departures.";
+    const OK_STATUS = new Set(["confirmed", "processing"]);
+    if (rows.some(r => !OK_STATUS.has((r["Status"]||"").trim().toLowerCase()))) return "Only Confirmed or Processing bookings can be grouped.";
+    if (rows.some(r => r.group_id)) return "Some bookings are already in a group — use Add to existing group or Change group.";
+    return null;
+  }
+
+  function selectionWarnings(rows, data){
+    const out = [];
+    // Flow 2.3 — some but not all of a group is selected. Splitting is a real outcome, so warn and allow.
+    const groups = new Set(rows.map(r => r.group_id).filter(Boolean));
+    const missing = [];
+    groups.forEach(gid => {
+      const all = data.df.filter(r => r.group_id === gid).map(r => (r["Booking Number"]||"").trim());
+      const absent = all.filter(bn => !selectedBns.has(bn));
+      if (absent.length) missing.push(`${gid} (${absent.length} member${absent.length===1?"":"s"} not selected)`);
+    });
+    if (missing.length) out.push({ kind: "partial", text: `Selection is missing group members — ${missing.join(", ")}. Proceeding will split the group.`, groups: [...groups] });
+    // Meeting-time spread — one round means one set of butlers and one check-in/check-out.
+    const ts = rows.map(r => r.Meeting_DT).filter(t => t != null);
+    if (ts.length > 1){
+      const spreadH = (Math.max(...ts) - Math.min(...ts)) / 3600000;
+      if (spreadH > SPREAD_WARN_HOURS) out.push({ kind: "spread", text: `Meeting times span ${spreadH.toFixed(1)} hours — a group is one round with one set of butlers. Allowed, but worth a second look.` });
+    }
+    return out;
+  }
+
+  // The bar floats over the bottom of the window rather than sitting above the table (2026-09-10):
+  // Group Check is long, and staff scrolling to tick the last member of a party shouldn't have to
+  // scroll back up to act on the selection. Hidden entirely while nothing is selected.
+  function paintBulkBar(){
+    const host = $("#bulkBarHost");
+    if (!host) return;
+    const html = lastData ? renderBulkBar(lastData) : "";
+    host.innerHTML = html;
+    host.hidden = !html;
+    document.body.classList.toggle("has-bulk-bar", !!html);
+  }
+
+  function renderBulkBar(data){
+    if (currentLogic !== "aps") return "";
+    const rows = selectedRows(data);
+    if (!rows.length) return "";
+    const blocked = groupBlockReason(rows);
+    const grouped = rows.filter(r => r.group_id);
+    const groupIds = [...new Set(grouped.map(r => r.group_id))];
+    const ungroupReason = grouped.length ? null : "None of the selected bookings are in a group.";
+    // Merge Groups is the same gesture now — select bookings from 2+ groups and combine them.
+    const mergeReason = groupIds.length >= 2 ? null
+      : "Select bookings from 2 or more groups to merge them.";
+    const renameReason = groupIds.length === 1 ? null
+      : (groupIds.length === 0 ? "Select bookings from a group to rename it." : "The selection spans more than one group.");
+    const warnings = selectionWarnings(rows, data).map(w => `<div class="bulk-warn ${w.kind}">⚠ ${esc(w.text)}</div>`).join("");
+    const btn = (id, label, reason, cls) => reason
+      ? `<button type="button" class="small ${cls} bulk-act" disabled title="${esc(reason)}" data-act="${id}">${label}</button><span class="bulk-why">${esc(reason)}</span>`
+      : `<button type="button" class="small ${cls} bulk-act" data-act="${id}">${label}</button>`;
+    return `
+      <div class="bulk-bar">
+        <div class="bulk-row">
+          <strong>${rows.length} booking${rows.length===1?"":"s"} selected</strong>
+          ${btn("group", "Group", blocked, "primary")}
+          ${btn("ungroup", "Ungroup", ungroupReason, "ghost")}
+          ${btn("rename", "Rename group", renameReason, "ghost")}
+          ${btn("merge", "Merge groups", mergeReason, "ghost")}
+          ${btn("edit", "Edit bookings", null, "ghost")}
+          <button type="button" class="small ghost" id="bulkClear">Clear selection</button>
+        </div>
+        ${warnings}
+        <div class="bulk-note">No Undo on these actions (decided 2026-09-01) — Ungroup can dissolve a group in one click, and rebuilding it by hand mints a fresh GroupBookingID.</div>
+      </div>`;
+  }
+
+
+  // ---- Phase 1 bulk-bar actions (2026-09-10) ----
+  // Group Check is re-rendered from lastData rather than re-running the whole pipeline, so ticking a
+  // checkbox doesn't re-cluster; the three membership actions do re-run, since they change grouping.
+  function rerenderGroupCheck(){
+    if (!lastData) return;
+    $("#tab-groupcheck").innerHTML = renderGroupCheck(lastData);
+    paintBulkBar();
+  }
+
+  function runBulkAction(kind){
+    const rows = selectedRows(lastData);
+    if (!rows.length) return;
+    const bns = rows.map(r => (r["Booking Number"]||"").trim());
+    if (kind === "group"){
+      // Same union-find as Merge — one gesture, one mechanism. Grouping also clears any earlier
+      // Ungroup on these bookings, otherwise the solo override would cancel the new group out.
+      bns.forEach(bn => { ungroupedBns.delete(bn); manualGroupedBns.add(bn); });
+      for (let i = 1; i < bns.length; i++) mergeUnion(bns[0], bns[i]);
+      run();
+      toast(`${bns.length} bookings grouped.`);
+      return;
+    }
+    if (kind === "ungroup"){
+      const affected = rows.filter(r => r.group_id);
+      const byGroup = new Map();
+      affected.forEach(r => { byGroup.set(r.group_id, (byGroup.get(r.group_id) || 0) + 1); });
+      affected.forEach(r => { const bn = (r["Booking Number"]||"").trim(); ungroupedBns.add(bn); manualGroupedBns.delete(bn); });
+      // A group that drops below 2 remaining members dissolves — say so, since there's no Undo.
+      const dissolved = [...byGroup.keys()].filter(gid => {
+        const remaining = lastData.df.filter(r => r.group_id === gid && !ungroupedBns.has((r["Booking Number"]||"").trim()));
+        return remaining.length < 2;
+      });
+      selectedBns.clear();
+      run();
+      toast(`${affected.length} booking${affected.length===1?"":"s"} removed from their group.`
+        + (dissolved.length ? ` ${dissolved.join(", ")} dissolved — below 2 members.` : ""));
+      return;
+    }
+    if (kind === "merge"){
+      const gids = [...new Set(rows.filter(r => r.group_id).map(r => r.group_id))];
+      // Merge every member of each selected group, not just the ticked ones — merging is a
+      // group-level action, same as Rename.
+      const anchors = gids.map(gid => lastData.df.find(r => r.group_id === gid)).map(r => (r["Booking Number"]||"").trim());
+      for (let i = 1; i < anchors.length; i++) mergeUnion(anchors[0], anchors[i]);
+      selectedBns.clear();
+      run();
+      toast(`${gids.length} groups merged under one GroupBookingID.`);
+      return;
+    }
+    if (kind === "rename") return openRenameModal(rows);
+    if (kind === "edit") return openBulkEditModal(rows);
+  }
+
+  function openRenameModal(rows){
+    const gid = rows.find(r => r.group_id).group_id;
+    const roundKey = [...new Set(lastData.df.filter(r => r.group_id === gid).map(r => (r["Booking Number"]||"").trim()))].sort().join(",");
+    $("#bulkModalTitle").textContent = `Rename group ${gid}`;
+    $("#bulkModalBody").innerHTML = `
+      <label class="bulk-field">Group name
+        <input type="text" id="bulkRenameInput" value="${esc(groupNames.get(roundKey) || "")}" placeholder="e.g. Acme Travel">
+      </label>
+      <p class="hint">Renames the whole group, not just the selected bookings. Same GroupName the Butler Schedule card edits inline.</p>
+      <button type="button" class="small primary" id="bulkRenameSave" data-key="${esc(roundKey)}">Save name</button>`;
+    $("#bulkModal").hidden = false;
+  }
+
+  function applyRename(){
+    const btn = $("#bulkRenameSave");
+    groupNames.set(btn.dataset.key, $("#bulkRenameInput").value.trim());
+    $("#bulkModal").hidden = true;
+    run();
+    toast("Group renamed.");
+  }
+
+  function openBulkEditModal(rows){
+    const uniqOf = f => [...new Set(rows.map(f).map(v => (v||"").trim()).filter(Boolean))];
+    const flights = uniqOf(r => r["Flight Number"]);
+    const dates = uniqOf(r => r["Flight Date"]);
+    const times = uniqOf(r => r["Meeting Time"]);
+    const points = uniqOf(r => r["Meeting Point"]);
+    const isDeparture = rows.every(r => (r["Flight Type"]||"").trim().toLowerCase() === "departure");
+    // "Different Flights" helper: a party deliberately split across two flights must not look like a typo.
+    const field = (id, label, vals, extra) => `
+      <label class="bulk-field">${label}${vals.length > 1 ? ` <span class="helper">— Different ${label}s, editing will collapse them</span>` : ""}
+        <input type="text" id="${id}" value="${esc(vals.length === 1 ? vals[0] : "")}" placeholder="${vals.length > 1 ? "Different — leave blank to keep" : "leave blank to keep"}">
+      </label>${extra || ""}`;
+    $("#bulkModalTitle").textContent = `Edit ${rows.length} booking${rows.length===1?"":"s"}`;
+    $("#bulkModalBody").innerHTML = `
+      <p class="hint">Changes booking data, not group membership. Exactly four fields — deliberately not a general-purpose bulk editor. Leave a field blank to keep its current value.</p>
+      ${field("bulkFlightNo", "Flight number", flights)}
+      ${field("bulkFlightDate", "Flight date", dates)}
+      ${field("bulkMeetingTime", "Meeting time", times)}
+      ${isDeparture ? field("bulkMeetingPoint", "Meeting point", points) : `<p class="hint">Meeting point is Departure-only, so it isn't offered for this selection.</p>`}
+      <p class="hint">The new flight must stay at the same airport and direction; an edit that would move the party BKK → DMK, or Arrival → Departure, is rejected. ⚠ Not demonstrable here — this demo reads airport from the Booking Number, not the flight number, so no flight-number edit can change it.</p>
+      <button type="button" class="small primary" id="bulkEditSave">Apply to ${rows.length} booking${rows.length===1?"":"s"}</button>`;
+    $("#bulkModal").hidden = false;
+  }
+
+  function applyBulkEdit(){
+    const rows = selectedRows(lastData);
+    const get = id => { const el = $("#" + id); return el ? el.value.trim() : ""; };
+    const patch = {};
+    if (get("bulkFlightNo")) patch["Flight Number"] = get("bulkFlightNo");
+    if (get("bulkFlightDate")) patch["Flight Date"] = get("bulkFlightDate");
+    if (get("bulkMeetingTime")) patch["Meeting Time"] = get("bulkMeetingTime");
+    if (get("bulkMeetingPoint")) patch["Meeting Point"] = get("bulkMeetingPoint");
+    if (!Object.keys(patch).length){ $("#bulkModal").hidden = true; toast("Nothing changed — every field was left blank."); return; }
+    rows.forEach(r => {
+      const bn = (r["Booking Number"]||"").trim();
+      bulkEdits.set(bn, Object.assign({}, bulkEdits.get(bn) || {}, patch));
+    });
+    $("#bulkModal").hidden = true;
+    run();
+    toast(`${rows.length} booking${rows.length===1?"":"s"} updated: ${Object.keys(patch).join(", ")}.`);
+  }
+
+  function toast(msg){
+    const el = $("#toast");
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { el.hidden = true; }, 6000);
+  }
+
   function renderGroupCheck(data){
+    // Review clusters are keyed by signature (member Booking Numbers, sorted+joined); Group Check
+    // needs the reverse lookup so a row can carry its own cluster's Confirm/Dismiss actions.
+    const reviewSigByBn = new Map();
+    (data.reviewClusters || []).forEach(c => c.bookings.forEach(b => reviewSigByBn.set(b.bn, c.sig)));
     const rows = [...data.df].sort((a,b) => (a.task_no-b.task_no) || (a["Flight Date"]||"").localeCompare(b["Flight Date"]||"") || (a["Flight Time"]||"").localeCompare(b["Flight Time"]||""));
     const isAps = currentLogic === "aps";
     let lastTask = null;
+    let groupBand = 0; // flips for each successive GROUP round, so neighbours never share a tint
+    const taskSize = new Map();
+    rows.forEach(r => taskSize.set(r.task_no, (taskSize.get(r.task_no) || 0) + 1));
     const body = rows.map(r => {
       const startsNew = r.task_no !== lastTask; lastTask = r.task_no;
       const bn = r["Booking Number"];
       const isIndiv = !!r.individual_flag;
+      // A REVIEW row is an unconfirmed suggestion, so Group Check offers the Review queue's own two
+      // actions inline (2026-09-11) rather than sending staff to another tab to act on what they're
+      // already looking at. Same cluster signature, same effect — this is another place to review from.
+      // One set of actions per ROUND, not per member row (2026-09-11) — the buttons act on the whole
+      // cluster, so repeating them down every member row offered the same click several times over.
+      const reviewSig = (r.status_code === "REVIEW" && startsNew) ? (reviewSigByBn.get(bn) || "") : "";
+      // A suggestion is decided as a whole, so its round shows one pair of actions on its first row and
+      // NOTHING on the members below (2026-09-11). Mark Individual would be a second, conflicting way to
+      // answer the same question, offered per member — decide the cluster first, one way or the other.
+      const inReviewRound = r.status_code === "REVIEW" && reviewSigByBn.has(bn);
       const actionCell = isAps
-        ? `<td><button type="button" class="small indiv-toggle-btn ${isIndiv ? "btn-unmark-individual" : "btn-mark-individual"}" data-bn="${esc(bn)}" data-action="${isIndiv ? "unmark" : "mark"}">${isIndiv ? "Unmark Individual" : "Mark Individual"}</button></td>`
+        ? `<td class="rowacts">${
+            reviewSig
+              ? `<button type="button" class="small primary suggest-btn" data-action="confirm" data-sig="${esc(reviewSig)}" title="Confirm: group these bookings under one GroupBookingID">Group together</button>
+                 <button type="button" class="small ghost suggest-btn" data-action="dismiss" data-sig="${esc(reviewSig)}" title="Dismiss: these bookings aren't one party — remove the suggestion">Separate bookings</button>`
+              : inReviewRound
+                ? ""
+                : `<button type="button" class="small indiv-toggle-btn ${isIndiv ? "btn-unmark-individual" : "btn-mark-individual"}" data-bn="${esc(bn)}" data-action="${isIndiv ? "unmark" : "mark"}">${isIndiv ? "Unmark Individual" : "Mark Individual"}</button>`
+          }</td>`
         : "";
       const connectsCell = isAps
         ? `<td>${r.connecting_label
             ? `<div class="connects-link"><span>→ ${esc(r.connecting_label)}</span><button type="button" class="small ghost unlink-btn" data-key="${esc(r.connecting_round_key)}">Unlink</button></div>`
             : ""}</td>`
         : "";
-      return `<tr class="${startsNew ? "task-start" : ""}">
-        <td class="num mono">${r.task_no}</td>
-        <td class="mono">${esc(r.group_id)}</td>
-        <td><span class="chip status-${r.status_code}">${r.status_code}</span></td>
+      const selCell = isAps
+        ? `<td class="selcell"><input type="checkbox" class="bulk-check" data-bn="${esc(bn)}" ${selectedBns.has(bn) ? "checked" : ""}></td>`
+        : "";
+      // Flow 2.2 — clicking a GroupBookingID selects every member of that group, which is what makes
+      // the partial-selection warning actionable.
+      // Group cell (2026-09-10): GroupName leads, since that's what staff recognise a party by; the
+      // GroupBookingID sits under it as the stable reference. An unnamed group shows the ID alone.
+      const gName = r.group_id ? (groupNames.get(roundKeyForGroup(data, r.group_id)) || "") : "";
+      const groupCell = isAps && r.group_id
+        ? `<td class="mono groupcell"><button type="button" class="group-tag" data-gid="${esc(r.group_id)}" title="Select every booking in this group">${
+            gName ? `<span class="gname">${esc(gName)}</span><span class="gid">${esc(r.group_id)}</span>` : `<span class="gid solo">${esc(r.group_id)}</span>`
+          }</button></td>`
+        : `<td class="mono groupcell">${esc(r.group_id)}</td>`;
+      // The task number prints once per round, on its first row, and members below it are joined by a
+      // dotted rule (2026-09-11) — a repeated number was the only thing marking a group before, which
+      // read as duplication rather than as one round.
+      const memberCount = taskSize.get(r.task_no) || 1;
+      if (startsNew && r.round_type === "Group") groupBand++;
+      const rtClass = r.round_type === "Group" ? ` rt-group band-${groupBand % 2 ? "a" : "b"}` : " rt-individual";
+      return `<tr class="${startsNew ? "task-start" : "task-cont"}${rtClass}${selectedBns.has(bn) ? " row-selected" : ""}">
+        ${selCell}
+        <td class="num mono taskcell">${startsNew ? r.task_no + (memberCount > 1 ? `<span class="task-count">×${memberCount}</span>` : "") : ""}</td>
+        ${groupCell}
+        <td><span class="chip status-${r.status_code}">${esc(r.round_type || "")}</span></td>
+        <td class="mono">${esc(r.grouping_source || "—")}</td>
         <td class="evidence">${esc(r.evidence)}</td>
         <td class="mono">${esc(r.flight_no_time)}</td>
         <td>${esc(r.flight_type_label)}</td>
@@ -1800,14 +2331,13 @@ COLUMNS,
         ${connectsCell}
       </tr>`;
     }).join("");
-    const groupCol = currentLogic === "aps"
-      ? `GroupBookingID`
-      : `Group`;
+    const groupCol = `Group`;
     return `
       ${isAps ? renderActionPanels(data) : ""}
       <div class="table-wrap"><table class="gc">
       <thead><tr>
-        <th>Task</th><th>${groupCol}</th><th>Status</th><th>Evidence / basis</th><th>Flight</th><th>Type</th>
+        ${isAps ? `<th class="selcell"><input type="checkbox" id="bulkCheckAll" title="Select all shown"></th>` : ""}
+        <th>Task</th><th class="groupcell">${groupCol}</th><th>Round Type</th><th>Grouping Source</th><th>Evidence / basis</th><th>Flight</th><th>Type</th>
         <th>Booking #</th><th>Channel</th><th>Partner</th><th>Contact</th><th>Pax</th><th>Meeting</th><th>Adult</th><th>Child</th><th>Party total</th><th>Butler</th>${isAps ? "<th>Actions</th><th>Connects to</th>" : ""}
       </tr></thead>
       <tbody>${body}</tbody>
@@ -2256,8 +2786,8 @@ COLUMNS,
   // contactBlock / paxBlock) rather than spreading across columns; Special Request (headed "Details"
   // until 2026-09-10) carries the special request only
   // (Note dropped from the export).
-  const EXPORT_HEADERS = ["Task No.","GroupBookingID","Group Status","Flight Date","Flight Time",
-    "Flight Number","Type","Booking Number","Partner","Contact","Pax Name","Special Request"];
+  const EXPORT_HEADERS = ["Task No.","GroupBookingID","GroupName","Round Type","Flight Date","Flight Time",
+    "Flight Number","Type","Booking Number","Partner","Contact","Pax Name","Special Request","Grouping Source"];
 
   function uniqLines(arr){
     const seen = new Set(), out = [];
@@ -2306,7 +2836,12 @@ COLUMNS,
       return {
         "Task No.": taskNo,
         "GroupBookingID": first.group_id || "",
-        "Group Status": uniqLines(rows.map(r => r.status_code)).join(" / "),
+        // Blank when the group is unnamed, and blank for a solo booking — GroupName is a group-level
+        // field, keyed the same stable way the Butler Schedule card and Group Check key it.
+        "GroupName": first.group_id
+          ? (groupNames.get([...new Set(rows.map(r => (r["Booking Number"]||"").trim()))].sort().join(",")) || "")
+          : "",
+        "Round Type": uniqLines(rows.map(r => r.round_type)).join(" / "),
         "Flight Date": first["Flight Date"],
         "Flight Time": uniqLines(rows.map(r => r["Flight Time"])).join(" / "),
         "Flight Number": first["Flight Number"],
@@ -2316,6 +2851,9 @@ COLUMNS,
         "Contact": uniqLines(rows.map(contactBlock)).join("\n"),
         "Pax Name": uniqLines(rows.map(paxBlock)).join("\n"),
         "Special Request": uniqLines(rows.map(r => r["Special Request"])).join("\n"),
+        // Appended last, per the 2026-09-09 note — anything reading the sheet by position would
+        // otherwise shift when Phase 3 introduces this column.
+        "Grouping Source": uniqLines(rows.map(r => r.grouping_source)).join(" / "),
       };
     });
   }
@@ -2334,11 +2872,19 @@ COLUMNS,
   // line per passenger, so clipping one cell alone no longer keeps the row level. Every multi-line cell
   // shares one clip (three lines, set by .row-clip's max-height) and one Expand/Collapse toggle. A pure display toggle, not app state, so it doesn't
   // survive the next Process (matches every other tab's recompute-from-scratch behavior).
-  function psiCell(h, value){
+  function psiCell(h, value, groupName){
     const t = (value == null ? "" : String(value)).trim();
     const cls = ["mono"];
     if (h === "Task No.") cls.push("num");
     if (h === "Pax Name") cls.push("paxcell");
+    // Group cell styled exactly as Group Check's (2026-09-11): GroupName leads, the GroupBookingID
+    // sits under it. Display only — the CSV keeps GroupBookingID as its own flat column.
+    if (h === "GroupBookingID"){
+      if (!t) return `<td class="mono groupcell"></td>`;
+      return `<td class="mono groupcell"><span class="group-block">${
+        groupName ? `<span class="gname">${esc(groupName)}</span><span class="gid">${esc(t)}</span>`
+                  : `<span class="gid solo">${esc(t)}</span>`}</span></td>`;
+    }
     if (!MULTILINE_EXPORT_FIELDS.has(h)) return `<td class="${cls.join(" ")}">${esc(t)}</td>`;
     return `<td class="${cls.join(" ")}"><div class="row-clip">${esc(t)}</div></td>`;
   }
@@ -2405,7 +2951,11 @@ COLUMNS,
           actionCell = `<button type="button" class="small indiv-toggle-btn ${isIndiv ? "btn-unmark-individual" : "btn-mark-individual"}" data-bn="${esc(first["Booking Number"])}" data-action="${isIndiv ? "unmark" : "mark"}">${isIndiv ? "Unmark Individual" : "Mark Individual"}</button>`;
         }
       }
-      const cells = EXPORT_HEADERS.map(h => psiCell(h, row[h])).join("");
+      const roundKey = [...new Set(rows.map(r => (r["Booking Number"]||"").trim()))].sort().join(",");
+      const gName = row["GroupBookingID"] ? (groupNames.get(roundKey) || "") : "";
+      // GroupName is carried by the file but not shown as its own on-screen column — the Group cell
+      // beside it already leads with the name, so a separate column would just repeat it.
+      const cells = EXPORT_HEADERS.filter(h => h !== "GroupName").map(h => psiCell(h, row[h], gName)).join("");
       // Rendered for every row and hidden by markClippedCells() on the rows that don't overflow —
       // whether a cell overflows depends on the laid-out column width, not just its text length.
       const toggleCell = `<td class="rowtoggle"><button type="button" class="small ghost row-toggle-btn" hidden>Expand</button></td>`;
@@ -2416,7 +2966,9 @@ COLUMNS,
       ${rangeBanner}
       ${isAps ? "" : `<div class="rule-note">Switch to the APS matching engine to see GroupBookingID and Review actions here.</div>`}
       <div class="table-wrap"><table class="gc">
-        <thead><tr><th class="rowtoggle"></th>${EXPORT_HEADERS.map(h => `<th${h === "Pax Name" ? ' class="paxcell"' : ""}>${esc(h)}</th>`).join("")}${isAps ? "<th>Review</th>" : ""}</tr></thead>
+        <thead><tr><th class="rowtoggle"></th>${EXPORT_HEADERS.filter(h => h !== "GroupName").map(h => h === "GroupBookingID"
+          ? `<th class="groupcell">Group</th>`
+          : `<th${h === "Pax Name" ? ' class="paxcell"' : ""}>${esc(h)}</th>`).join("")}${isAps ? "<th>Review</th>" : ""}</tr></thead>
         <tbody>${body}</tbody>
       </table></div>`;
   }
@@ -2492,6 +3044,7 @@ COLUMNS,
       $("#tab-timeline").innerHTML = renderTimeline(data);
       $("#tab-butlersched").innerHTML = renderButlerSchedule(data);
       $("#tab-groupcheck").innerHTML = renderGroupCheck(data);
+      paintBulkBar();
       $("#tab-summary").innerHTML = renderSummary(data);
       $("#tab-suggested").innerHTML = renderSuggested(data);
       $("#tab-psi").innerHTML = renderPSI(data);
@@ -2500,8 +3053,9 @@ COLUMNS,
       suggestedBtn.hidden = currentLogic !== "aps";
       if (suggestedBtn.hidden && suggestedBtn.classList.contains("active")){
         suggestedBtn.classList.remove("active");
-        document.querySelector('.tab[data-tab="timeline"]').classList.add("active");
-        $("#tab-timeline").hidden = false;
+        document.querySelector('.tab[data-tab="groupcheck"]').classList.add("active");
+        $("#tab-groupcheck").hidden = false;
+        paintBulkBar();
         $("#tab-suggested").hidden = true;
       }
       setResultsVisible(true);
@@ -2576,6 +3130,36 @@ COLUMNS,
       run();
       return;
     }
+    // ---- Phase 1 bulk bar (2026-09-10) ----
+    const chk = e.target.closest(".bulk-check");
+    if (chk){
+      const bn = chk.dataset.bn;
+      if (chk.checked) selectedBns.add(bn); else selectedBns.delete(bn);
+      rerenderGroupCheck();
+      return;
+    }
+    if (e.target.closest("#bulkCheckAll")){
+      const on = e.target.checked;
+      document.querySelectorAll("#tab-groupcheck .bulk-check").forEach(c => {
+        if (on) selectedBns.add(c.dataset.bn); else selectedBns.delete(c.dataset.bn);
+      });
+      rerenderGroupCheck();
+      return;
+    }
+    const tag = e.target.closest(".group-tag");
+    if (tag){
+      // Flow 2.2 — one click selects the whole group.
+      (lastData.df || []).forEach(r => { if (r.group_id === tag.dataset.gid) selectedBns.add((r["Booking Number"]||"").trim()); });
+      rerenderGroupCheck();
+      return;
+    }
+    if (e.target.closest("#bulkClear")){ selectedBns.clear(); rerenderGroupCheck(); return; }
+    const act = e.target.closest(".bulk-act");
+    if (act && !act.disabled){ runBulkAction(act.dataset.act); return; }
+    if (e.target.closest(".bulk-modal-close") || e.target === $("#bulkModal")){ $("#bulkModal").hidden = true; return; }
+    if (e.target.closest("#bulkRenameSave")){ applyRename(); return; }
+    if (e.target.closest("#bulkEditSave")){ applyBulkEdit(); return; }
+
     if (e.target.closest("#mergeBtn")){
       const selected = [...document.querySelectorAll("#mergeSelect option:checked")].map(o => o.value);
       if (selected.length < 2){
@@ -2684,11 +3268,14 @@ COLUMNS,
       ["timeline","groupcheck","summary","suggested"].forEach(name => {
         $("#tab-"+name).hidden = name !== btn.dataset.tab;
       });
+      if (btn.dataset.tab === "groupcheck") paintBulkBar();
+      else { $("#bulkBarHost").hidden = true; document.body.classList.remove("has-bulk-bar"); }
     });
   });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !$("#bookingModal").hidden) closeBookingModal();
+    if (e.key === "Escape" && !$("#bulkModal").hidden) $("#bulkModal").hidden = true;
   });
 
   function setLogic(logic){
@@ -2721,6 +3308,9 @@ COLUMNS,
       btn.classList.add("active");
       PAGE_NAMES.forEach(name => { $("#page-"+name).hidden = name !== btn.dataset.page; });
       if (btn.dataset.page === "psi") setTimeout(markClippedCells, 0);
+      // The bulk bar acts on a Group Check selection, so it only floats over Group Check.
+      const onGroupCheck = btn.dataset.page === "app" && !$("#tab-groupcheck").hidden;
+      if (onGroupCheck) paintBulkBar(); else { $("#bulkBarHost").hidden = true; document.body.classList.remove("has-bulk-bar"); }
     });
   });
 

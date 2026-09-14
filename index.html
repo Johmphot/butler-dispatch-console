@@ -592,7 +592,7 @@
 
   <div id="page-psi" hidden>
     <div class="tabs-row-actions" style="justify-content:flex-end; margin-bottom:14px;">
-      <button id="exportBtn" class="small ghost">Export to Excel (.csv) — 1 row per service</button>
+      <button id="exportBtn" class="small ghost">Export to Excel (.xlsx) — 1 row per service</button>
     </div>
     <p class="hint" id="psiEmpty">Process bookings on the <strong>Grouping</strong> page first.</p>
     <div class="tab-panel" id="tab-psi"></div>
@@ -738,7 +738,10 @@
         genuinely overflow are marked, so you can tell at a glance which fields are hiding content.</li>
         <li>You can click <em>anywhere</em> in a clipped row to open it, not just the Expand button. Rows with nothing
         hidden aren't clickable.</li>
-        <li>Click <strong>Export to Excel (.csv) — 1 row per service</strong> to download the sheet.</li>
+        <li>Click <strong>Export to Excel (.xlsx) — 1 row per service</strong> to download the sheet. It opens straight
+        in Excel with a bold, frozen header row and a filter already on, and the multi-line cells show their line breaks.
+        Inside the Claude artifact viewer the button offers <strong>.csv</strong> instead, because that viewer can't save
+        Excel files.</li>
       </ul>
       <p>Exported columns, in order: Task No., GroupBookingID, Round Type, Flight Date, Flight Time, Flight Number,
       Type, Booking Number, Partner, Contact, Pax Name, Special Request, Grouping Source.</p>
@@ -966,13 +969,22 @@
       <code>GroupBookingID</code> and <code>GroupName</code> are separate flat columns, per the spec's own column set.
       <code>GroupName</code> has no column of its own <em>on screen</em> — the Group cell already leads with it, so a second
       column would just repeat it.</p>
-      <p>Shows the same field set and row grain as the CSV export (one row per service), headed by the date range
+      <p>Shows the same field set and row grain as the export (one row per service), headed by the date range
       spanning every booking in the currently loaded file — independent of the Meeting-Time window. Offers the same
       Confirm / Dismiss / Not Duplicated / Mark Individual actions inline, so it doubles as another place to review from
       rather than a separate mechanism. Every row stays a fixed height regardless of how long a task's Special Request text runs — clipped to a few lines by default, with an Expand/Collapse toggle on that one cell when it
       overflows.</p>
 
-      <h3>CSV export &amp; display fields</h3>
+      <h3>Export format</h3>
+      <p><strong>A real <code>.xlsx</code> workbook since 2026-09-14</strong>, built in the browser from the fflate library
+      already embedded for reading uploads — so the file stays fully offline with no new dependency. One sheet named
+      <em>Dispatch</em>: bold, tinted, frozen header row with an autofilter; Task No. written as a number; every other cell
+      as text with wrap-text on, so the multi-line cells (booking numbers, contact, passengers) show their line breaks.</p>
+      <p>⚠️ <strong>Inside the Claude artifact viewer the export stays <code>.csv</code>.</strong> That viewer only saves an
+      allowlist of file types and <code>.xlsx</code> isn't on it, so the button relabels itself there. The standalone file
+      and the GitHub Pages copy both produce the workbook.</p>
+
+      <h3>Export columns &amp; display fields</h3>
       <p>Export fields, in order: Task No. / GroupBookingID / <strong>GroupName</strong> (added 2026-09-11, blank when the
       group is unnamed or the row is a solo booking) / <strong>Round Type</strong> / Flight Date / Flight Time /
       Flight Number / Type / Booking Number / Partner / Contact / Pax Name / Special Request /
@@ -1053,7 +1065,7 @@
   // purely a display field for Group Check/Review — it plays no role in matching either.
   const COLUMNS = ["Status","Booking Number","Flight Number","Flight Type","Flight Date","Flight Time","Meeting Date","Meeting Time","Passenger 1","Other Passengers","Contact Name","Email","Phone","Pax 1 Phone","Special Request","Note","Partner","Adult","Child","Buggy","Booking Source","Individual Booking","Channel","Pax 1 Nationality","Meeting Point"];
   // Bump on any user-visible change to this file — shown in the top-nav version badge.
-  const APP_VERSION = "1.17.0";
+  const APP_VERSION = "1.18.0";
   let currentLogic = "aps"; // "original" (GG19 skill) | "aps" (APS group-booking matching engine) — default
 
   // ---------- staff-action state (APS logic only) ----------
@@ -2973,6 +2985,92 @@ COLUMNS,
       </table></div>`;
   }
 
+  // ---- XLSX export (2026-09-14) ----
+  // A real .xlsx built in the browser from the fflate already embedded for READING uploads, so the file
+  // stays fully offline with no new dependency. Minimal SpreadsheetML: inline strings (no shared-strings
+  // table), a bold frozen header with an autofilter, and wrap-text so the multi-line cells (booking
+  // numbers, contact, pax) actually show their line breaks in Excel instead of one long run.
+  function xmlEsc(v){
+    return String(v == null ? "" : v)
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "") // XML 1.0 forbids these outright
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function colLetter(i){ let s = ""; i++; while (i > 0){ const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+
+  // Widths in Excel character units, tuned to the content each column actually carries.
+  const XLSX_COL_WIDTHS = { "Task No.": 8, "GroupBookingID": 14, "GroupName": 22, "Round Type": 11, "Flight Date": 12,
+    "Flight Time": 12, "Flight Number": 13, "Type": 16, "Booking Number": 16, "Partner": 20, "Contact": 42,
+    "Pax Name": 44, "Special Request": 40, "Grouping Source": 15 };
+
+  function buildExportXLSX(serviceRows){
+    const u8 = fflate.strToU8;
+    const cell = (ref, v, style, isNum) => isNum && v !== "" && !isNaN(Number(v))
+      ? `<c r="${ref}" s="${style}"><v>${Number(v)}</v></c>`
+      : `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+    const lastCol = colLetter(EXPORT_HEADERS.length - 1);
+    const rowsXml = [
+      `<row r="1">${EXPORT_HEADERS.map((h, i) => cell(`${colLetter(i)}1`, h, 1, false)).join("")}</row>`,
+      ...serviceRows.map((row, ri) => {
+        const r = ri + 2;
+        return `<row r="${r}">${EXPORT_HEADERS.map((h, i) => cell(`${colLetter(i)}${r}`, row[h] ?? "", 2, h === "Task No.")).join("")}</row>`;
+      })
+    ].join("");
+    const cols = EXPORT_HEADERS.map((h, i) => `<col min="${i+1}" max="${i+1}" width="${XLSX_COL_WIDTHS[h] || 14}" customWidth="1"/>`).join("");
+    const lastRow = serviceRows.length + 1;
+
+    const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<cols>${cols}</cols><sheetData>${rowsXml}</sheetData>
+<autoFilter ref="A1:${lastCol}${lastRow}"/></worksheet>`;
+
+    const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
+<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFE3F3F1"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="3">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+
+    return fflate.zipSync({
+      "[Content_Types].xml": u8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`),
+      "_rels/.rels": u8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`),
+      "xl/workbook.xml": u8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="Dispatch" sheetId="1" r:id="rId1"/></sheets>
+<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Dispatch!$A$1:$${lastCol}$${lastRow}</definedName></definedNames>
+</workbook>`),
+      "xl/_rels/workbook.xml.rels": u8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`),
+      "xl/worksheets/sheet1.xml": u8(sheet),
+      "xl/styles.xml": u8(styles),
+    }, { level: 6 });
+  }
+
+  // The published Artifact viewer only saves allowlisted file types, and .xlsx is not on that list —
+  // so inside the viewer the export stays CSV, and everywhere else (the standalone file, GitHub Pages)
+  // it is a real workbook.
+  function inArtifactViewer(){ return !!(window.claude && typeof window.claude.use === "function"); }
+
   function buildExportCSV(serviceRows){
     const lines = [EXPORT_HEADERS.map(csvQuote).join(",")];
     serviceRows.forEach(row => lines.push(EXPORT_HEADERS.map(h => csvQuote(row[h] ?? "")).join(",")));
@@ -2987,7 +3085,7 @@ COLUMNS,
 
   const DOWNLOAD_ERROR_MESSAGES = {
     rejected_extension: "That file type isn't allowed for download here.",
-    extension_not_enabled: "CSV export isn't enabled in this view.",
+    extension_not_enabled: "This file type isn't enabled for download in this view.",
     too_large: "That export is too large to download (16MB limit).",
     declined: "Download was declined.",
     rate_limited: "A download prompt is already open — try again in a moment.",
@@ -3001,23 +3099,22 @@ COLUMNS,
       return;
     }
     const serviceRows = buildServiceRows(lastData);
-    const csvText = buildExportCSV(serviceRows);
-    const filename = `butler-dispatch-${todayStamp()}.csv`;
     const exportBtn = $("#exportBtn");
     exportBtn.disabled = true;
     try {
-      if (window.claude && typeof window.claude.use === "function"){
+      if (inArtifactViewer()){
         const downloads = await window.claude.use("downloads");
         if (downloads){
-          await downloads.save({ filename, data: csvText });
+          const filename = `butler-dispatch-${todayStamp()}.csv`;
+          await downloads.save({ filename, data: buildExportCSV(serviceRows) });
           statusLine.classList.remove("err");
-          statusLine.textContent = `Exported ${serviceRows.length} service row${serviceRows.length===1?"":"s"} to ${filename}.`;
+          statusLine.textContent = `Exported ${serviceRows.length} service row${serviceRows.length===1?"":"s"} to ${filename} (CSV — this viewer can't save .xlsx).`;
           return;
         }
       }
-      // Fallback for local testing outside the published Artifact viewer — the viewer sandbox makes
-      // <a download> inert there, but the real downloads capability (above) handles that case.
-      const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
+      // Standalone file / GitHub Pages: a real workbook, handed over through an ordinary download link.
+      const filename = `butler-dispatch-${todayStamp()}.xlsx`;
+      const blob = new Blob([buildExportXLSX(serviceRows)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = filename;
@@ -3074,6 +3171,11 @@ COLUMNS,
 
   $("#processBtn").addEventListener("click", run);
   $("#exportBtn").addEventListener("click", exportServiceSheet);
+  // Label the button with the format this view will actually produce. Checked again shortly after load,
+  // since a host's bridge may attach after this script's first run.
+  const syncExportLabel = () => { $("#exportBtn").textContent = inArtifactViewer()
+    ? "Export to Excel (.csv) — 1 row per service" : "Export to Excel (.xlsx) — 1 row per service"; };
+  syncExportLabel(); setTimeout(syncExportLabel, 1000);
   $("#loadSample").addEventListener("click", () => { resetStaffActions(); csvInput.value = SAMPLE_CSV; resetDefaultWindow(); run(); });
   $("#clearData").addEventListener("click", () => { resetStaffActions(); csvInput.value = ""; lastData = null; setResultsVisible(false); statusLine.classList.remove("err"); statusLine.textContent = "Cleared."; });
   $("#xlsxFile").addEventListener("change", (e) => {

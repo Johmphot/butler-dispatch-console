@@ -22,7 +22,15 @@ Top-level pages: **Grouping** (booking import/window, plus Timeline/Group Check/
 sub-tabs, Group Check first) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
 export view, with the CSV export button) · **Ops Guide** · **Read Me**.
 
-## What's new (v1.17.0)
+## What's new (v1.18.0)
+
+**The dispatch sheet now downloads as a real Excel workbook (`.xlsx`)** instead of CSV. It opens
+straight in Excel with a bold, frozen header row and a filter already on, the task number as a
+number, and wrap-text so multi-line cells (booking numbers, contact, passengers) show their line
+breaks. It is built in the browser from the zip library the page already embeds for reading
+uploads, so the file still runs fully offline with no new dependency.
+
+## Previously (v1.17.0)
 
 **Phase 1's bulk bar, on Group Check.** Booking Management's bulk actions are adapted onto this
 screen so the behaviour can be tried before it's built: **Group**, **Ungroup**, **Rename group**,

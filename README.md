@@ -22,7 +22,33 @@ Top-level pages: **Grouping** (booking import/window, plus Timeline/Group Check/
 sub-tabs, Group Check first) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
 export view, with the CSV export button) · **Ops Guide** · **Read Me**.
 
-## What's new (v1.18.0)
+## What's new (v1.20.0)
+
+**Grouping now enforces the requirement's membership rule: one group holds one flight.** The
+**Group** and **Merge groups** buttons compare Airport, Flight Type, Flight Number and Flight Date
+across the selection, and the disabled button says which of them stopped it. Flight numbers are
+compared normalised, so `BR 67`, `BR67` and `BR0067` count as one flight. Merge checks every member
+of each selected group, not only the ticked rows, so two groups on different flights can no longer
+be combined.
+
+**Meeting Date is no longer compared** — deliberately. One departure's passengers met either side of
+midnight share a flight date and belong in the same group; up to v1.19.0 the prototype had this
+inverted, blocking on meeting date while ignoring the flight entirely.
+
+⚠️ The requirement exempts **Custom Flights** from the flight-number match and only warns. This demo
+does not model Custom Flights at all, so here a differing number always blocks.
+
+## Previously (v1.19.0)
+
+**The Group button opens a name box**, pre-filled with the suggested default
+`<Partner> (<total pax> pax)` when every selected booking shares one partner, and left blank when
+they do not. The pax count is frozen at that moment.
+
+**Merge groups lets you choose which group survives.** The confirm dialog carries a survivor
+dropdown, defaulting to the first selected booking's group, and states which reference and name
+carry across; the name stays editable there. Absorbed references are retired and never re-minted.
+
+## Previously (v1.18.0)
 
 **The dispatch sheet now downloads as a real Excel workbook (`.xlsx`)** instead of CSV. It opens
 straight in Excel with a bold, frozen header row and a filter already on, the task number as a

@@ -443,6 +443,10 @@
   .bulk-field input{display:block; width:100%; margin-top:4px; padding:6px 8px; font-family:var(--font-mono);
     font-size:13px; border:1px solid var(--line); border-radius:5px; background:var(--surface); color:var(--ink);}
   .bulk-field .helper{color:var(--ink-dim); font-style:italic;}
+  .bulk-field select{display:block; width:100%; margin-top:4px; padding:6px 8px; font-family:var(--font-mono);
+    font-size:13px; border:1px solid var(--line); border-radius:5px; background:var(--surface); color:var(--ink);}
+  .merge-summary{font-size:12.5px; line-height:1.5; padding:8px 10px; margin:0 0 12px; border-radius:5px;
+    background:var(--surface-2); border:1px solid var(--line); color:var(--ink);}
   .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:60; max-width:min(560px, 92vw);
     background:var(--ink); color:var(--paper); padding:10px 14px; border-radius:8px; font-size:13px; line-height:1.45;
     box-shadow:0 6px 24px rgba(0,0,0,.25);}
@@ -688,15 +692,23 @@
       to select that entire group in one go. Then:</p>
       <ul>
         <li><strong>Group</strong> — combines the selection into one group. If the button is greyed out it
-        tells you which rule stopped it: different meeting dates, different airports, mixed
-        arrivals and departures, a booking that isn't Confirmed or Processing, or a booking already in a
-        group. Differing flight numbers never block.</li>
+        tells you which rule stopped it: different airports, mixed arrivals and departures, different
+        flight numbers, different flight dates, a booking that isn't Confirmed or Processing, or a booking
+        already in a group. <strong>A group holds one flight</strong> — flight number and flight date must
+        match, and flight numbers are compared loosely enough that <em>BR 67</em> and <em>BR0067</em> count
+        as the same. Meeting dates are <em>not</em> compared, so one departure's passengers met either side
+        of midnight still group. Clicking it opens a <strong>Group name</strong> box.
+        When every selected booking has the same partner it is pre-filled as
+        <em>Partner (N pax)</em> — keep it, edit it or clear it. Mixed partners leave it blank.</li>
         <li><strong>Ungroup</strong> — removes the selected bookings from their group. The others keep
         theirs, and a group left with fewer than two members dissolves. The message says when it did.</li>
         <li><strong>Rename group</strong> — sets the group name, the same one the Butler Schedule card
         shows. It renames the whole group, not just what you ticked.</li>
         <li><strong>Merge groups</strong> — combines two or more selected groups into one. Select
-        bookings from each group you want merged.</li>
+        bookings from each group you want merged. In the dialog, choose the <strong>surviving group</strong>
+        — it starts on the group of the first booking you ticked. The survivor's reference is written
+        across every merged booking; the others are retired and their references never come back. The
+        name follows the survivor and you can edit it before confirming.</li>
         <li><strong>Edit bookings</strong> — changes flight number, flight date, meeting time and, for
         departures, meeting point across the selection. It changes booking details, not who is in the
         group.</li>
@@ -922,16 +934,31 @@
       <span class="chip status-CONFIRMED">CONFIRMED</span> with its own <code>GroupBookingID</code>, the
       same standing as confirming a suggestion from the Review queue. It is enabled only when the
       selection is groupable, and <strong>a disabled button always states why</strong>, showing the first
-      blocking condition in the spec's own order: fewer than 2 selected, differing Meeting Dates,
-      differing airports, mixed Arrival/Departure, a booking that isn't Confirmed or Processing, or a
-      booking already in a group. Flight number deliberately never blocks.</p>
+      blocking condition in the spec's own order: fewer than 2 selected, differing airports, mixed
+      Arrival/Departure, differing Flight Numbers, differing Flight Dates, a booking that isn't Confirmed
+      or Processing, or a booking already in a group. <strong>Since v1.20.0 the membership rule is
+      Airport + Flight Type + Flight Number + Flight Date</strong> — one group holds one flight — with
+      flight numbers compared normalised (<code>BR 67</code> → <code>BR0067</code>). ⚠️ <strong>Meeting
+      Date is deliberately not compared</strong>, so a Departure met either side of midnight still groups;
+      up to v1.19.0 this was inverted, blocking on Meeting Date and ignoring both flight fields. ⚠️ The
+      spec's <strong>Custom Flight exemption is not modelled here</strong> — the sample data has no
+      <code>is_custom_flight</code>, so every flight behaves as resolved and a differing number always
+      blocks, where the real system would only warn. Since 2026-09-15 it opens a
+      <strong>Group name</strong> popover, pre-filled with the spec's suggested default
+      <code>&lt;Partner&gt; (&lt;total pax&gt; pax)</code> when every selected booking shares one
+      <code>Partner</code> (never Partner Aff), otherwise blank. The pax count is frozen at that moment.</p>
       <p><strong>Ungroup</strong> (Flow 2.4) clears the group tag from the selected bookings only; the
       others keep theirs. If that leaves the group below 2 members it <strong>dissolves</strong>, and the
       toast says so. <strong>Rename group</strong> (Flow 4) sets the same <code>GroupName</code> the
       Butler Schedule card edits inline, for the whole group rather than the selection.
       <strong>Merge groups</strong> combines two or more selected groups under one
       <code>GroupBookingID</code> — group-level, so it takes every member of each selected group, not just
-      the ticked ones. <strong>Edit bookings</strong> is the bulk group edit — exactly four fields (flight number, flight
+      the ticked ones. Since v1.20.0 <strong>the membership rule is enforced on Merge too</strong>, checked
+      across every member of the selected groups rather than the ticked rows, so two groups on different
+      flights can no longer be merged. Statuses are not checked — Merge accepts every status that may stay. Since 2026-09-15 the confirm dialog has a <strong>survivor dropdown</strong> listing
+      every selected group, defaulting to the first selected booking's group, and states which reference
+      and name survive; the name is editable there. Absorbed references are retired and reserved, so the
+      demo's per-Process counter never re-mints them onto another group. <strong>Edit bookings</strong> is the bulk group edit — exactly four fields (flight number, flight
       date, meeting time, and meeting point on Departure groups), changing booking data rather than
       membership, with the "Different Flights" helper text where members disagree.</p>
       <p>Two warnings <strong>warn and allow</strong> rather than block: a selection covering only part of
@@ -944,7 +971,7 @@
       same party, and every booking across them ends up sharing one canonical <code>GroupBookingID</code>. Always
       staff-initiated, never automatic.</p>
       <p><strong>Link/Unlink Connecting Itinerary</strong> cross-references two rounds that are physically connected but
-      can't share a <code>GroupBookingID</code> (different Meeting Dates) — e.g. an Arrival plus an onward connecting
+      can't share a <code>GroupBookingID</code> (different flights) — e.g. an Arrival plus an onward connecting
       flight — as a "Connects to →" indicator without merging their membership. A round can only have one active link at
       a time.</p>
       <p>Both persist across re-processing until you load new data.</p>
@@ -1065,7 +1092,7 @@
   // purely a display field for Group Check/Review — it plays no role in matching either.
   const COLUMNS = ["Status","Booking Number","Flight Number","Flight Type","Flight Date","Flight Time","Meeting Date","Meeting Time","Passenger 1","Other Passengers","Contact Name","Email","Phone","Pax 1 Phone","Special Request","Note","Partner","Adult","Child","Buggy","Booking Source","Individual Booking","Channel","Pax 1 Nationality","Meeting Point"];
   // Bump on any user-visible change to this file — shown in the top-nav version badge.
-  const APP_VERSION = "1.18.0";
+  const APP_VERSION = "1.20.0";
   let currentLogic = "aps"; // "original" (GG19 skill) | "aps" (APS group-booking matching engine) — default
 
   // ---------- staff-action state (APS logic only) ----------
@@ -1113,6 +1140,12 @@
   let bulkEdits = new Map();      // Booking Number -> {"Flight Number","Flight Date","Meeting Time","Meeting Point"}
   let selectedBns = new Set();    // current Group Check selection (transient, but survives re-render)
   let groupNames = new Map();     // round key -> staff-set GroupName
+  // Merge survivor (2026-09-15): staff pick which group's GroupBookingID survives a bulk-bar Merge.
+  // Booking Number -> the survivor's ID, so the minting pass hands that ID back to the merged party
+  // instead of the next running number. The demo counter restarts every Process, so forced IDs are
+  // reserved first and skipped by the counter — otherwise another group could be minted onto it.
+  let survivorGids = new Map();
+  let retiredGids = new Set();    // absorbed by a Merge — never minted again (never-reuse)
   let butlerAssigned = new Set(); // round key -> Assigned (demo toggle)
   let emailSent = new Set();      // round key -> Email Sent (demo toggle)
   function resetStaffActions(){
@@ -1120,6 +1153,7 @@
     adjustedOut = new Map(); mergeParent = new Map(); connectingLinks = new Map(); notDuplicated = new Set();
     groupNames = new Map(); butlerAssigned = new Set(); emailSent = new Set();
     manualGroupedBns = new Set(); ungroupedBns = new Set(); bulkEdits = new Map(); selectedBns = new Set();
+    survivorGids = new Map(); retiredGids = new Set();
   }
 
   function pad2(n){ return String(n).padStart(2,"0"); }
@@ -1812,6 +1846,13 @@ COLUMNS,
         }
       });
       const scopeCounters = new Map();
+      // Survivor IDs from Merge: one per party (first member carrying one wins), reserved up front.
+      const forcedGid = new Map();
+      df.forEach(r => {
+        const g = survivorGids.get((r["Booking Number"]||"").trim());
+        if (g && !forcedGid.has(r.party_root) && ![...forcedGid.values()].includes(g)) forcedGid.set(r.party_root, g);
+      });
+      const reservedGids = new Set([...forcedGid.values(), ...retiredGids]);
       const groupBookingIds = new Map();
       [...partyAgg.entries()]
         .filter(([, p]) => p.rows.length > 1)
@@ -1827,10 +1868,12 @@ COLUMNS,
           // once and never re-minted, so nothing citing it is ever stranded by a service-date move.
           // ⚠️ Demo simplification: a real counter is unique across all time and persisted; this one
           // restarts at 000001 on every Process, so numbers shift as the loaded data changes.
+          if (forcedGid.has(root)){ groupBookingIds.set(root, forcedGid.get(root)); return; }
           const serviceLetter = (rep["Booking Number"] || "").trim().charAt(0).toUpperCase() || "?";
-          const running = (scopeCounters.get(serviceLetter) || 0) + 1;
+          let running = scopeCounters.get(serviceLetter) || 0, gid;
+          do { running++; gid = `G${serviceLetter}-${String(running).padStart(6,"0")}`; } while (reservedGids.has(gid));
           scopeCounters.set(serviceLetter, running);
-          groupBookingIds.set(root, `G${serviceLetter}-${String(running).padStart(6,"0")}`);
+          groupBookingIds.set(root, gid);
         });
       df.forEach(r => r.group_id = groupBookingIds.get(r.party_root) || "");
     } else {
@@ -2057,18 +2100,49 @@ COLUMNS,
     return (data && data.df ? data.df : []).filter(r => selectedBns.has((r["Booking Number"]||"").trim()));
   }
 
+  // Flight numbers compare normalised (spec): spaces out, upper-cased, the number padded to four
+  // digits — "BR 67", "BR67" and "BR0067" are one flight.
+  function normFlightNo(v){
+    const s = String(v || "").trim().toUpperCase().replace(/\s+/g, "");
+    const m = s.match(/^([A-Z0-9]*?)(\d{1,4})$/);
+    return m ? m[1] + m[2].padStart(4, "0") : s;
+  }
+
+  // Membership is Airport + Flight Type + Flight Number + Flight Date — one group holds one flight
+  // (spec 2026-09-15). ⚠️ Meeting Date is deliberately NOT compared: one Departure's passengers met
+  // either side of midnight share a Flight Date and must still group. Until 1.19.0 this had it exactly
+  // backwards — it blocked on Meeting Date and ignored both flight fields.
+  // ⚠️ The Custom Flight exemption is not modelled — the sample data carries no is_custom_flight, so
+  // every flight here behaves as resolved and a differing number always blocks. In the real system a
+  // Custom Flight is exempt from the number match and only warns.
+  function membershipBlockReason(rows, subject){
+    const uniq = f => new Set(rows.map(f));
+    if (uniq(r => airportOf(r)).size > 1) return `These ${subject} are at different airports.`;
+    if (uniq(r => (r["Flight Type"]||"").trim().toLowerCase()).size > 1) return `These ${subject} mix arrivals and departures.`;
+    if (uniq(r => normFlightNo(r["Flight Number"])).size > 1) return `These ${subject} are on different flight numbers — one group holds one flight.`;
+    if (uniq(r => (r["Flight Date"]||"").trim()).size > 1) return `These ${subject} are on different flight dates — one group holds one flight.`;
+    return null;
+  }
+
   // First blocking condition wins, in the spec's own order — staff can't tell a rule from a bug
   // unless a disabled button says which rule stopped it.
   function groupBlockReason(rows){
     if (rows.length < 2) return "Select at least 2 bookings to group.";
-    const uniq = f => new Set(rows.map(f));
-    if (uniq(r => (r["Meeting Date"]||"").trim()).size > 1) return "These bookings have different meeting dates.";
-    if (uniq(r => airportOf(r)).size > 1) return "These bookings are at different airports.";
-    if (uniq(r => (r["Flight Type"]||"").trim().toLowerCase()).size > 1) return "These bookings mix arrivals and departures.";
+    const membership = membershipBlockReason(rows, "bookings");
+    if (membership) return membership;
     const OK_STATUS = new Set(["confirmed", "processing"]);
     if (rows.some(r => !OK_STATUS.has((r["Status"]||"").trim().toLowerCase()))) return "Only Confirmed or Processing bookings can be grouped.";
     if (rows.some(r => r.group_id)) return "Some bookings are already in a group — use Add to existing group or Change group.";
     return null;
+  }
+
+  // Merge is group-level — it takes every member of each selected group, so the membership rule is
+  // checked across those full groups rather than the ticked rows. No status check: Merge accepts every
+  // status that may stay, including Completed and No-Show.
+  function mergeBlockReason(rows, data){
+    const gids = [...new Set(rows.map(r => r.group_id).filter(Boolean))];
+    if (gids.length < 2) return "Select bookings from 2 or more groups to merge them.";
+    return membershipBlockReason(data.df.filter(r => gids.includes(r.group_id)), "groups");
   }
 
   function selectionWarnings(rows, data){
@@ -2111,9 +2185,9 @@ COLUMNS,
     const grouped = rows.filter(r => r.group_id);
     const groupIds = [...new Set(grouped.map(r => r.group_id))];
     const ungroupReason = grouped.length ? null : "None of the selected bookings are in a group.";
-    // Merge Groups is the same gesture now — select bookings from 2+ groups and combine them.
-    const mergeReason = groupIds.length >= 2 ? null
-      : "Select bookings from 2 or more groups to merge them.";
+    // Merge Groups is the same gesture now — select bookings from 2+ groups and combine them. The
+    // membership rule applies here too, across every member of the selected groups.
+    const mergeReason = mergeBlockReason(rows, data);
     const renameReason = groupIds.length === 1 ? null
       : (groupIds.length === 0 ? "Select bookings from a group to rename it." : "The selection spans more than one group.");
     const warnings = selectionWarnings(rows, data).map(w => `<div class="bulk-warn ${w.kind}">⚠ ${esc(w.text)}</div>`).join("");
@@ -2150,20 +2224,12 @@ COLUMNS,
     const rows = selectedRows(lastData);
     if (!rows.length) return;
     const bns = rows.map(r => (r["Booking Number"]||"").trim());
-    if (kind === "group"){
-      // Same union-find as Merge — one gesture, one mechanism. Grouping also clears any earlier
-      // Ungroup on these bookings, otherwise the solo override would cancel the new group out.
-      bns.forEach(bn => { ungroupedBns.delete(bn); manualGroupedBns.add(bn); });
-      for (let i = 1; i < bns.length; i++) mergeUnion(bns[0], bns[i]);
-      run();
-      toast(`${bns.length} bookings grouped.`);
-      return;
-    }
+    if (kind === "group") return openGroupModal(rows);
     if (kind === "ungroup"){
       const affected = rows.filter(r => r.group_id);
       const byGroup = new Map();
       affected.forEach(r => { byGroup.set(r.group_id, (byGroup.get(r.group_id) || 0) + 1); });
-      affected.forEach(r => { const bn = (r["Booking Number"]||"").trim(); ungroupedBns.add(bn); manualGroupedBns.delete(bn); });
+      affected.forEach(r => { const bn = (r["Booking Number"]||"").trim(); ungroupedBns.add(bn); manualGroupedBns.delete(bn); survivorGids.delete(bn); });
       // A group that drops below 2 remaining members dissolves — say so, since there's no Undo.
       const dissolved = [...byGroup.keys()].filter(gid => {
         const remaining = lastData.df.filter(r => r.group_id === gid && !ungroupedBns.has((r["Booking Number"]||"").trim()));
@@ -2175,20 +2241,117 @@ COLUMNS,
         + (dissolved.length ? ` ${dissolved.join(", ")} dissolved — below 2 members.` : ""));
       return;
     }
-    if (kind === "merge"){
-      const gids = [...new Set(rows.filter(r => r.group_id).map(r => r.group_id))];
-      // Merge every member of each selected group, not just the ticked ones — merging is a
-      // group-level action, same as Rename.
-      const anchors = gids.map(gid => lastData.df.find(r => r.group_id === gid)).map(r => (r["Booking Number"]||"").trim());
-      for (let i = 1; i < anchors.length; i++) mergeUnion(anchors[0], anchors[i]);
-      selectedBns.clear();
-      run();
-      toast(`${gids.length} groups merged under one GroupBookingID.`);
-      return;
-    }
+    if (kind === "merge") return openMergeModal();
     if (kind === "rename") return openRenameModal(rows);
     if (kind === "edit") return openBulkEditModal(rows);
   }
+
+  // Suggested GroupName (spec, "Suggested default"): `<Partner> (<total pax> pax)` when every entering
+  // booking has a partner and it's the same one — Partner, never Partner Aff. Otherwise blank.
+  // The pax count is frozen at suggestion time; it isn't re-suggested when membership changes.
+  function suggestedGroupName(rows){
+    const partners = new Set(rows.map(r => (r["Partner"]||"").trim()));
+    if (partners.size !== 1 || partners.has("")) return "";
+    const pax = rows.reduce((n, r) => n + (Number(r["Adult"])||0) + (Number(r["Child"])||0), 0);
+    return `${[...partners][0]} (${pax} pax)`;
+  }
+
+  // Flow 2.1 (2026-09-15): Group opens a name popover instead of grouping in one click.
+  function openGroupModal(rows){
+    const suggestion = suggestedGroupName(rows);
+    const warnings = selectionWarnings(rows, lastData).map(w => `<div class="bulk-warn ${w.kind}">⚠ ${esc(w.text)}</div>`).join("");
+    $("#bulkModalTitle").textContent = `Group ${rows.length} bookings`;
+    $("#bulkModalBody").innerHTML = `
+      <label class="bulk-field">Group name <span class="helper">— optional</span>
+        <input type="text" id="bulkGroupName" value="${esc(suggestion)}" placeholder="e.g. Acme Travel (12 pax)">
+      </label>
+      <p class="hint">${suggestion
+        ? "Pre-filled with the suggested name — every selected booking shares one partner. Keep, edit or clear it. The pax count is frozen now and won't update if members change later."
+        : "No suggestion — the selected bookings don't all share one partner. Leave blank to group without a name; the GroupBookingID is shown instead."}</p>
+      ${warnings}
+      <button type="button" class="small primary" id="bulkGroupSave">Create group</button>`;
+    $("#bulkModal").hidden = false;
+    const input = $("#bulkGroupName"); input.focus(); input.select();
+  }
+
+  function applyGroup(){
+    const rows = selectedRows(lastData);
+    const bns = rows.map(r => (r["Booking Number"]||"").trim());
+    const name = $("#bulkGroupName").value.trim();
+    // Same union-find as Merge — one gesture, one mechanism. Grouping also clears any earlier
+    // Ungroup on these bookings, otherwise the solo override would cancel the new group out.
+    bns.forEach(bn => { ungroupedBns.delete(bn); manualGroupedBns.add(bn); });
+    for (let i = 1; i < bns.length; i++) mergeUnion(bns[0], bns[i]);
+    if (name) groupNames.set([...bns].sort().join(","), name);
+    selectedBns.clear();
+    $("#bulkModal").hidden = true;
+    run();
+    const gid = (lastData.df.find(r => (r["Booking Number"]||"").trim() === bns[0]) || {}).group_id || "";
+    toast(`${bns.length} bookings grouped${gid ? ` as ${gid}` : ""}${name ? ` — "${name}"` : ""}.`);
+  }
+
+  // Merge (2026-09-15): staff choose the survivor in a dropdown listing every selected group,
+  // defaulting to the group of the first selected booking. The dialog states which reference and
+  // name survive, and the name stays editable. Absorbed groups' references and names end here.
+  function openMergeModal(){
+    const df = lastData.df;
+    const gidOfBn = new Map(df.map(r => [(r["Booking Number"]||"").trim(), r.group_id]));
+    const gids = [...new Set([...selectedBns].map(bn => gidOfBn.get(bn)).filter(Boolean))];
+    const info = gids.map(gid => {
+      const members = df.filter(r => r.group_id === gid);
+      return { gid, n: members.length, name: groupNames.get(roundKeyForGroup(lastData, gid)) || "" };
+    });
+    const opts = info.map(g => `<option value="${esc(g.gid)}" data-name="${esc(g.name)}">${esc(g.gid)}${g.name ? ` — ${esc(g.name)}` : ""} (${g.n} booking${g.n===1?"":"s"})</option>`).join("");
+    const total = info.reduce((n, g) => n + g.n, 0);
+    $("#bulkModalTitle").textContent = `Merge ${gids.length} groups`;
+    $("#bulkModalBody").innerHTML = `
+      <p class="hint">Merges every member of each group — ${total} bookings — not only the ticked ones.</p>
+      <label class="bulk-field">Surviving group
+        <select id="bulkMergeSurvivor">${opts}</select>
+      </label>
+      <label class="bulk-field">Group name <span class="helper">— defaults to the survivor's, editable</span>
+        <input type="text" id="bulkMergeName" value="${esc(info[0].name)}" placeholder="Unnamed — the GroupBookingID is shown instead">
+      </label>
+      <div class="merge-summary" id="bulkMergeSummary"></div>
+      <button type="button" class="small primary" id="bulkMergeSave" data-gids="${esc(gids.join(","))}">Merge groups</button>`;
+    $("#bulkModal").hidden = false;
+    paintMergeSummary();
+  }
+
+  function paintMergeSummary(){
+    const sel = $("#bulkMergeSurvivor"), box = $("#bulkMergeSummary");
+    if (!sel || !box) return;
+    const survivor = sel.value;
+    const absorbed = [...sel.options].map(o => o.value).filter(g => g !== survivor);
+    const name = $("#bulkMergeName").value.trim();
+    box.innerHTML = `<strong>${esc(survivor)}</strong>${name ? ` · "${esc(name)}"` : " · no name"} survives and is written across every merged booking.
+      <br>${absorbed.map(esc).join(", ")} ${absorbed.length === 1 ? "is" : "are"} retired as Merged, forwarding to ${esc(survivor)}.`;
+  }
+
+  function applyMerge(){
+    const survivor = $("#bulkMergeSurvivor").value;
+    const name = $("#bulkMergeName").value.trim();
+    const gids = $("#bulkMergeSave").dataset.gids.split(",");
+    const df = lastData.df;
+    const allBns = df.filter(r => gids.includes(r.group_id)).map(r => (r["Booking Number"]||"").trim());
+    const anchors = gids.map(gid => (df.find(r => r.group_id === gid)["Booking Number"]||"").trim());
+    for (let i = 1; i < anchors.length; i++) mergeUnion(anchors[0], anchors[i]);
+    allBns.forEach(bn => survivorGids.set(bn, survivor));
+    gids.filter(g => g !== survivor).forEach(g => retiredGids.add(g));
+    const key = [...new Set(allBns)].sort().join(",");
+    if (name) groupNames.set(key, name); else groupNames.delete(key);
+    selectedBns.clear();
+    $("#bulkModal").hidden = true;
+    run();
+    toast(`${gids.length} groups merged into ${survivor}${name ? ` — "${name}"` : ""}.`);
+  }
+
+  document.addEventListener("input", e => { if (e.target.id === "bulkMergeName") paintMergeSummary(); });
+  document.addEventListener("change", e => {
+    if (e.target.id !== "bulkMergeSurvivor") return;
+    $("#bulkMergeName").value = e.target.selectedOptions[0].dataset.name || "";
+    paintMergeSummary();
+  });
 
   function openRenameModal(rows){
     const gid = rows.find(r => r.group_id).group_id;
@@ -3260,6 +3423,8 @@ COLUMNS,
     if (act && !act.disabled){ runBulkAction(act.dataset.act); return; }
     if (e.target.closest(".bulk-modal-close") || e.target === $("#bulkModal")){ $("#bulkModal").hidden = true; return; }
     if (e.target.closest("#bulkRenameSave")){ applyRename(); return; }
+    if (e.target.closest("#bulkGroupSave")){ applyGroup(); return; }
+    if (e.target.closest("#bulkMergeSave")){ applyMerge(); return; }
     if (e.target.closest("#bulkEditSave")){ applyBulkEdit(); return; }
 
     if (e.target.closest("#mergeBtn")){

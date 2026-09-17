@@ -22,6 +22,20 @@ Top-level pages: **Grouping** (booking import/window, plus Timeline/Group Check/
 sub-tabs, Group Check first) · **Butler Schedule** (one card per travel party) · **PSI** (condensed one-row-per-service
 export view, with the CSV export button) · **Ops Guide** · **Read Me**.
 
+## What's new (v1.21.0)
+
+**The `Grouping Source` value `Confirmed` is now `Staff-confirmed`.** It collided with the Booking
+Status of the same name — in the dispatch sheet Operations read daily, `Confirmed` already means *a
+paid booking awaiting service*, and the export carries both facts side by side.
+
+The new name also says what the value actually means: **the engine raised this cluster for review
+and a person approved it**. A group somebody built by hand is `Manual`, and the two are deliberately
+kept apart — collapsing them would lose the engine's assist rate, which is how often it found a real
+party but wasn't confident enough to act alone.
+
+Nothing else changed: the same three origins (`Manual`, `Auto`, `Staff-confirmed`) still never
+change once set, and `Review` still clears the moment you action the suggestion.
+
 ## What's new (v1.20.0)
 
 **Grouping now enforces the requirement's membership rule: one group holds one flight.** The

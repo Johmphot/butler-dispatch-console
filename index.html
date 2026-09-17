@@ -768,8 +768,8 @@
       <h3>Reading Round Type and Grouping Source</h3>
       <p>Two separate columns, not one status. <strong>Round Type</strong> says whether this is a
       <strong>Group</strong> or an <strong>Individual</strong> booking. <strong>Grouping Source</strong>
-      says how it got that way: <strong>Auto</strong> when the engine grouped it, <strong>Confirmed</strong>
-      when you accepted a suggestion, <strong>Review</strong> while a suggestion is still waiting on you,
+      says how it got that way: <strong>Auto</strong> when the engine grouped it, <strong>Staff-confirmed</strong>
+      when the engine raised a cluster and you accepted it, <strong>Review</strong> while a suggestion is still waiting on you,
       <strong>Manual</strong> for anything you did by hand, and <strong>Adjusted</strong> or
       <strong>Duplicate</strong> for the two special cases. A dash means the engine found no match.</p>
       <p>Editing a group the engine formed does <em>not</em> change its source to Manual. That is
@@ -913,9 +913,12 @@
       <p>The single Group Status field <strong>split into two on 2026-09-09</strong>, and Group Check and
       the PSI view both follow it. <strong>Round Type</strong> is <code>Group</code> or
       <code>Individual</code> and never changes meaning. <strong>Grouping Source</strong> records
-      <em>origin</em>: <code>Auto</code>, <code>Confirmed</code>, <code>Review</code>, <code>Manual</code>
+      <em>origin</em>: <code>Auto</code>, <code>Staff-confirmed</code>, <code>Review</code>, <code>Manual</code>
       for anything a staff action produced, plus <code>Adjusted</code> and <code>Duplicate</code> for the
-      two states this prototype has that the spec doesn't name. A booking the engine simply found no
+      two states this prototype has that the spec doesn't name. <code>Staff-confirmed</code> was called
+      <code>Confirmed</code> until 2026-09-17; it was renamed to end the collision with the Booking Status
+      of the same name, and it means <em>the engine proposed this cluster and a person approved it</em> —
+      a group made by hand is <code>Manual</code>. A booking the engine simply found no
       match for has no source at all and shows <code>—</code>.</p>
       <p>Origin <strong>does not flip to Manual when staff edit an auto-formed group</strong> — merging two
       auto-grouped parties leaves both reading <code>Auto</code>. Flipping it would erase the one signal
@@ -1092,7 +1095,7 @@
   // purely a display field for Group Check/Review — it plays no role in matching either.
   const COLUMNS = ["Status","Booking Number","Flight Number","Flight Type","Flight Date","Flight Time","Meeting Date","Meeting Time","Passenger 1","Other Passengers","Contact Name","Email","Phone","Pax 1 Phone","Special Request","Note","Partner","Adult","Child","Buggy","Booking Source","Individual Booking","Channel","Pax 1 Nationality","Meeting Point"];
   // Bump on any user-visible change to this file — shown in the top-nav version badge.
-  const APP_VERSION = "1.20.0";
+  const APP_VERSION = "1.21.0";
   let currentLogic = "aps"; // "original" (GG19 skill) | "aps" (APS group-booking matching engine) — default
 
   // ---------- staff-action state (APS logic only) ----------
@@ -1723,7 +1726,7 @@ COLUMNS,
     // meaning; Grouping Source records ORIGIN — and deliberately does not flip to Manual when staff
     // later edit an auto-formed group, since that would erase the only signal showing the engine
     // formed a group a human had to correct.
-    const SOURCE_BY_STATUS = { AUTO: "Auto", CONFIRMED: "Confirmed", REVIEW: "Review",
+    const SOURCE_BY_STATUS = { AUTO: "Auto", CONFIRMED: "Staff-confirmed", REVIEW: "Review",
       ADJUSTED: "Adjusted", DUPE: "Duplicate" };
     const sizeByRoot = new Map();
     df.forEach(r => sizeByRoot.set(r.party_root, (sizeByRoot.get(r.party_root) || 0) + 1));
